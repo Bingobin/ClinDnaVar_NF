@@ -20,7 +20,7 @@ process GATK_rmdup {
 process GATK_BQSR {
     tag "BQSR on $sample_id"
 
-    publishDir "$params.outdir/bam", mode:'copy', pattern: "${sample_id}.bqsr.bam",  
+    publishDir "$params.outdir/bam", mode:'copy', pattern: "${sample_id}.bqsr.bam"
     publishDir "$params.outdir/bam", mode:'copy', pattern: "${sample_id}.bqsr.bai"
     publishDir "$params.outdir/report", mode:'copy', pattern: "${sample_id}.recal_data.table"
     publishDir "$params.outdir/report", mode:'copy', pattern: "${sample_id}.bqsr.bam.stats"
