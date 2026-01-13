@@ -161,7 +161,3 @@ Main output folders (under `--outdir`):
 - `modules/gatk.nf`
 - `modules/callers.nf`
 - `modules/annotation.nf`
-
-## Contact
-
-If you want container support (Docker/Singularity) or profiles in `nextflow.config`, tell me your environment and I can add them.
