@@ -1,0 +1,20 @@
+# Nextflow
+.nextflow/
+work/
+*.log
+.timeline.html
+.report.html
+.trace
+.dag.html
+
+# Results
+results/
+
+# Test data
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# Mac
+.DS_Store
