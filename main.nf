@@ -30,8 +30,10 @@ include { MUT_ANNOTATE; MAF_COMBIND } from './modules/annotation'
 include { BAM_DEPTH; VCF_STATS } from './modules/stats'
 
 workflow {
+    def input_header = new File(params.input.toString()).withReader { it.readLine() }
+    def input_sep = (input_header != null && input_header.contains('\t')) ? '\t' : ','
     Channel.fromPath(params.input)
-        .splitCsv(header: true)
+        .splitCsv(header: true, sep: input_sep)
         .map{["${it.ID}" ,["${it.R1}", "${it.R2}"]]}
         .set {ch_rawfastq}
 //    ch_rawfastq.view()
