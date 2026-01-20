@@ -10,6 +10,7 @@ ClinDnaVar_NF is a clinical-grade DNA sequencing variant calling workflow for WE
 - GATK HaplotypeCaller (GVCF) + GenotypeGVCFs + VQSR post-processing
 - Somatic callers: Mutect2, LoFreq, VarDict, Pisces
 - Annotation (dbSNP + ANNOVAR) and merged MAF output
+- Coverage and variant statistics (mosdepth_d4, bcftools stats)
 
 ## Requirements
 
@@ -22,6 +23,7 @@ This pipeline expects the following tools to be available in PATH (or in your co
 - samtools
 - gatk
 - bcftools
+- mosdepth_d4
 - lofreq
 - vardict-java
 - var2vcf_valid.pl
@@ -62,7 +64,7 @@ ID,R1,R2
 Sample1,/path/to/Sample1_R1.fastq.gz,/path/to/Sample1_R2.fastq.gz
 ```
 
-Default input is set in `main.nf`:
+Default input is set in `nextflow.config`:
 
 - `params.input = "$projectDir/bin/samplesheet_20240706.csv"`
 
@@ -102,7 +104,7 @@ nextflow run main.nf --input samplesheet.test.csv --use_umi true
 
 ## Parameters
 
-Key parameters in `main.nf`:
+Key parameters in `nextflow.config`:
 
 - `--input`: samplesheet CSV
 - `--outdir`: output directory (default: `results`)
@@ -116,6 +118,11 @@ Key parameters in `main.nf`:
 - `--callers`: enabled callers (default: `mutect2,lofreq,vardict,pisces,germline`)
 - `--use_umi`: enable UMI path (default: `false`)
 
+Default process resources (can be overridden per process):
+
+- `process.cpus = 4`
+- `process.memory = 4.GB * task.cpus`
+
 ## Outputs
 
 Main output folders (under `--outdir`):
@@ -123,8 +130,9 @@ Main output folders (under `--outdir`):
 - `report/`: FastQC, fastp, GATK metrics and BQSR reports, VQSR PDFs
 - `bam/`: BQSR BAM/BAI
 - `gvcf/`: GVCF files from HaplotypeCaller
-- `vcf/`: normalized VCFs for each caller
+- `vcf/`: normalized VCFs for each caller and per-caller VCF stats
 - `maf/`: annotated MAFs and combined MAF
+- `depth/`: mosdepth_d4 coverage outputs
 
 ## Workflow Overview
 
@@ -145,13 +153,14 @@ Main output folders (under `--outdir`):
 ├── bin/                  # helper scripts used by pipeline
 ├── modules/              # Nextflow DSL2 modules
 ├── main.nf               # main workflow
+├── nextflow.config       # default params and resources
 ├── samplesheet.test.csv  # example samplesheet
 └── README.md
 ```
 
 ## Notes
 
-- The pipeline uses fixed paths for some reference resources in `main.nf` and `bin/get_germline.pl`. Update these paths to match your environment.
+- The pipeline uses fixed paths for some reference resources in `nextflow.config` and `bin/get_germline.pl`. Update these paths to match your environment.
 - `get_germline.pl` generates a SLURM script and executes it. Ensure SLURM is available or replace with your scheduler/job runner.
 
 ## Module Files
@@ -161,3 +170,4 @@ Main output folders (under `--outdir`):
 - `modules/gatk.nf`
 - `modules/callers.nf`
 - `modules/annotation.nf`
+- `modules/stats.nf`
