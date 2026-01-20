@@ -3,8 +3,8 @@
 nextflow.enable.dsl=2
 
 log.info """\
-    C H I P _ P I P E - N F    P I P E L I N E
-    ==========================================
+    C l i n D n a V a r _ N F   P I P E L I N E
+    ============================================
     Sample Info :  ${params.input}
     Project Dir :  $projectDir
     Reference   :  ${params.reference}
