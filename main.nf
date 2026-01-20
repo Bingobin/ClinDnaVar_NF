@@ -2,18 +2,6 @@
 
 nextflow.enable.dsl=2
 
-params.input = "$projectDir/bin/samplesheet_20240706.csv"
-params.outdir = "results"
-params.reference = "/lustre/home/acct-medkkw/medlyb/database/annotation/gatk_ann/hg38/bwaindex2/Homo_sapiens_assembly38.fasta"
-params.ref_dict = "/lustre/home/acct-medkkw/medlyb/database/annotation/gatk_ann/hg38/bwaindex2/Homo_sapiens_assembly38.dict"
-params.tmp = "/lustre/home/acct-medkkw/medlyb/tmp"
-params.anno = "/lustre/home/acct-medkkw/medlyb/database/annotation/gatk_ann/hg38/hg38bundle"
-params.snpdb = "$projectDir/assets/wes.target.hg38.f.dbsnp_155.vcf.gz"
-params.bed = "$projectDir/assets/wes.target.hg38.f.bed"
-params.intervals = "$projectDir/assets/wes.target.hg38.f.intervals"
-params.callers = "mutect2,lofreq,vardict,pisces,germline"
-params.use_umi = false
-
 log.info """\
     C H I P _ P I P E - N F    P I P E L I N E
     ==========================================
