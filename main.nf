@@ -39,6 +39,7 @@ include {
     Pisces_Call
 } from './modules/callers'
 include { MUT_ANNOTATE; MAF_COMBIND } from './modules/annotation'
+include { BAM_DEPTH; VCF_STATS } from './modules/stats'
 
 workflow {
     Channel.fromPath(params.input)
@@ -56,6 +57,7 @@ workflow {
         ch_rmdup = GATK_rmdup(ch_aligned_bam.bam)
         ch_bqsr = GATK_BQSR(ch_rmdup.bam)
     }
+    BAM_DEPTH(ch_bqsr.bam)
 
     def caller_list = params.callers.split(',').collect { it.trim().toLowerCase() }.findAll { it }
     def anno_inputs = []
@@ -64,11 +66,13 @@ workflow {
         ch_gvcf = GENOTYPE(ch_bqsr.bam)
         ch_germline = GATK_CALL_GERM(ch_gvcf)
         anno_inputs << ch_germline.vcf
+        VCF_STATS(ch_germline.vcf)
     }
 
     if (caller_list.contains('mutect2')) {
         ch_mutect2 = Mutect2_Call(ch_bqsr.bam)
         anno_inputs << ch_mutect2
+        VCF_STATS(ch_mutect2)
     }
 //    ch_pindel_s = Pindel_Split_BED(ch_bqsr.bam, params.bed).transpose() | Pindel_Call
 //    ch_pindel = Pindel_Merge(ch_pindel_s.groupTuple())
@@ -76,16 +80,19 @@ workflow {
     if (caller_list.contains('lofreq')) {
         ch_lofreq = LoFreq_Call(ch_bqsr.bam)
         anno_inputs << ch_lofreq
+        VCF_STATS(ch_lofreq)
     }
 
     if (caller_list.contains('vardict')) {
         ch_vardict = VarDict_Call(ch_bqsr.bam)
         anno_inputs << ch_vardict
+        VCF_STATS(ch_vardict)
     }
 
     if (caller_list.contains('pisces')) {
         ch_pisces = Pisces_Call(ch_bqsr.bam)
         anno_inputs << ch_pisces
+        VCF_STATS(ch_pisces)
     }
 //    ch_anno = MUT_ANNOTATE(ch_mutect2.mix(ch_lofreq, ch_vardict, ch_pisces, ch_pindel))
     if (anno_inputs) {
