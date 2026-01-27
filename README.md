@@ -30,6 +30,7 @@ This pipeline expects the following tools to be available in PATH (or in your co
 - pisces
 - annovar (table_annovar.pl)
 - perl
+- cnvkit.py
 
 Optional (currently commented in workflow):
 
@@ -62,6 +63,19 @@ Example:
 ```csv
 ID,R1,R2
 Sample1,/path/to/Sample1_R1.fastq.gz,/path/to/Sample1_R2.fastq.gz
+```
+
+For BAM input (`--input_type bam`, treated as BQSR-ready), use:
+
+- `ID`: sample ID
+- `BAM`: path to aligned BAM
+- `BAI`: path to BAM index
+
+Example:
+
+```csv
+ID,BAM,BAI
+Sample1,/path/to/Sample1.bam,/path/to/Sample1.bam.bai
 ```
 
 Default input is set in `nextflow.config`:
@@ -117,6 +131,15 @@ Key parameters in `nextflow.config`:
 - `--intervals`: intervals list
 - `--callers`: enabled callers (default: `mutect2,lofreq,vardict,pisces,germline`)
 - `--use_umi`: enable UMI path (default: `false`)
+- `--input_type`: `fastq` or `bam` (default: `fastq`)
+- `--cnvkit`: enable CNVKit batch run (default: `false`)
+- `--cnv_targets`: target BED for CNVKit (default: `assets/wes.target.hg38.f.bed`)
+- `--cnv_annotate`: refFlat annotation for CNVKit
+- `--cnv_normal`: optional normal BAM(s) for CNVKit
+- `--only_cnv`: run only CNVKit after BQSR (default: `false`)
+- `--only_depth`: run only depth after BQSR (default: `false`)
+
+CNVKit runs with `--processes $task.cpus` inside the CNV module.
 
 Default process resources (can be overridden per process):
 
@@ -133,6 +156,7 @@ Main output folders (under `--outdir`):
 - `vcf/`: normalized VCFs for each caller and per-caller VCF stats
 - `maf/`: annotated MAFs and combined MAF
 - `depth/`: mosdepth_d4 coverage outputs
+- `cnvkit/`: CNVKit batch outputs (CNN reference + per-sample output dir, including `.cnr/.cns/.call.cns` and `*.cnv.{scatter,diagram}.pdf`)
 
 ## Workflow Overview
 
@@ -144,6 +168,7 @@ Main output folders (under `--outdir`):
 6. **Somatic callers** (optional): Mutect2, LoFreq, VarDict, Pisces
 7. **Annotation**: dbSNP + ANNOVAR
 8. **MAF merge**: combine multi-caller MAFs
+9. **CNV** (optional): CNVKit batch on BQSR-ready BAM (`--cnvkit true`), plus explicit `cnvkit.py scatter/diagram` outputs.
 
 ## Project Layout
 

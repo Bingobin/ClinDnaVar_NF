@@ -9,6 +9,10 @@ log.info """\
     Project Dir :  $projectDir
     Reference   :  ${params.reference}
     Capture BED :  ${params.bed}
+    Input Type  :  ${params.input_type}
+    CNVKit Run  :  ${params.cnvkit}
+    Only CNV    :  ${params.only_cnv}
+    Only Depth  :  ${params.only_depth}
     Out Dir     :  ${params.outdir}
     """
     .stripIndent(true)
@@ -28,26 +32,48 @@ include {
 } from './modules/callers'
 include { MUT_ANNOTATE; MAF_COMBIND } from './modules/annotation'
 include { BAM_DEPTH; VCF_STATS } from './modules/stats'
+include { CNVKIT_BATCH } from './modules/cnv'
 
 workflow {
     def input_header = new File(params.input.toString()).withReader { it.readLine() }
     def input_sep = (input_header != null && input_header.contains('\t')) ? '\t' : ','
-    Channel.fromPath(params.input)
-        .splitCsv(header: true, sep: input_sep)
-        .map{["${it.ID}" ,["${it.R1}", "${it.R2}"]]}
-        .set {ch_rawfastq}
-//    ch_rawfastq.view()
-    FASTQC(ch_rawfastq)
-    ch_cleanfastq = FastpFilter{ch_rawfastq}
-    ch_aligned_bam = ALING_REF(ch_cleanfastq.fastq)
-    if (params.use_umi) {
-        ch_umi_bam = RM_UMI_DUP(ch_aligned_bam.bam)
+    def input_type = params.input_type ? params.input_type.toString().toLowerCase() : 'fastq'
+    if (input_type == 'bam') {
+        Channel.fromPath(params.input)
+            .splitCsv(header: true, sep: input_sep)
+            .map { tuple(it.ID.toString(), file(it.BAM), file(it.BAI)) }
+            .set { ch_input_bam }
+    } else {
+        Channel.fromPath(params.input)
+            .splitCsv(header: true, sep: input_sep)
+            .map{["${it.ID}" ,["${it.R1}", "${it.R2}"]]}
+            .set {ch_rawfastq}
+    //    ch_rawfastq.view()
+        FASTQC(ch_rawfastq)
+        ch_cleanfastq = FastpFilter{ch_rawfastq}
+        ch_input_bam = ALING_REF(ch_cleanfastq.fastq).bam
+    }
+    if (input_type == 'bam') {
+        ch_bqsr = ch_input_bam
+    } else if (params.use_umi) {
+        ch_umi_bam = RM_UMI_DUP(ch_input_bam)
         ch_bqsr = GATK_BQSR(ch_umi_bam.bam)
     } else {
-        ch_rmdup = GATK_rmdup(ch_aligned_bam.bam)
+        ch_rmdup = GATK_rmdup(ch_input_bam)
         ch_bqsr = GATK_BQSR(ch_rmdup.bam)
     }
+    if (params.only_cnv) {
+        CNVKIT_BATCH(ch_bqsr.bam)
+        return
+    }
+    if (params.only_depth) {
+        BAM_DEPTH(ch_bqsr.bam)
+        return
+    }
     BAM_DEPTH(ch_bqsr.bam)
+    if (params.cnvkit) {
+        CNVKIT_BATCH(ch_bqsr.bam)
+    }
 
     def caller_list = params.callers.split(',').collect { it.trim().toLowerCase() }.findAll { it }
     def anno_inputs = []
