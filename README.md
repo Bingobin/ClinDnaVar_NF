@@ -135,7 +135,8 @@ Key parameters in `nextflow.config`:
 - `--cnvkit`: enable CNVKit batch run (default: `false`)
 - `--cnv_targets`: target BED for CNVKit (default: `assets/wes.target.hg38.f.bed`)
 - `--cnv_annotate`: refFlat annotation for CNVKit
-- `--cnv_normal`: optional normal BAM(s) for CNVKit
+- `--cnv_normal`: optional normal BAM(s) for CNVKit; use `true` or `self` to pass `--normal` with no file (self-normal)
+- `--cnvkit_conda`: conda env name/path for CNVKit (default: `cnvkit`)
 - `--only_cnv`: run only CNVKit after BQSR (default: `false`)
 - `--only_depth`: run only depth after BQSR (default: `false`)
 
@@ -186,6 +187,7 @@ Main output folders (under `--outdir`):
 ## Notes
 
 - The pipeline uses fixed paths for some reference resources in `nextflow.config` and `bin/get_germline.pl`. Update these paths to match your environment.
+- Conda is enabled in `nextflow.config`; ensure `conda` is available in PATH (or run with `-with-conda`).
 - `get_germline.pl` generates a SLURM script and executes it. Ensure SLURM is available or replace with your scheduler/job runner.
 
 ## Module Files

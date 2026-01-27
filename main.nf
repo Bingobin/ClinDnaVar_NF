@@ -41,7 +41,7 @@ workflow {
     if (input_type == 'bam') {
         Channel.fromPath(params.input)
             .splitCsv(header: true, sep: input_sep)
-            .map { tuple(it.ID.toString(), file(it.BAM), file(it.BAI)) }
+            .map {["${it.ID}" ,"${it.BAM}", "${it.BAI}"]}
             .set { ch_input_bam }
     } else {
         Channel.fromPath(params.input)
@@ -54,7 +54,7 @@ workflow {
         ch_input_bam = ALING_REF(ch_cleanfastq.fastq).bam
     }
     if (input_type == 'bam') {
-        ch_bqsr = ch_input_bam
+        ch_bqsr = [bam: ch_input_bam]
     } else if (params.use_umi) {
         ch_umi_bam = RM_UMI_DUP(ch_input_bam)
         ch_bqsr = GATK_BQSR(ch_umi_bam.bam)
