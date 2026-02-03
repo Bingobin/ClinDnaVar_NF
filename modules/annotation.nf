@@ -14,16 +14,16 @@ process MUT_ANNOTATE {
     script:
     """
     bcftools annotate --threads $task.cpus -a ${params.snpdb} -c INFO/RS,INFO/SSR,INFO/GENEINFO,INFO/PSEUDOGENEINFO,INFO/SAO,INFO/SSR,INFO/VC,INFO/PM,INFO/NSF,INFO/NSM,INFO/NSN,INFO/SYN,INFO/U3,INFO/U5,INFO/ASS,INFO/DSS,INFO/INT,INFO/R3,INFO/R5,INFO/GNO,INFO/PUB,INFO/FREQ,INFO/COMMON ${vcf[0]} -o   ${sample_id}.${type}.snpdb155.vcf
-    perl /lustre/home/acct-medkkw/medlyb/soft/annovar/table_annovar.pl  ${sample_id}.${type}.snpdb155.vcf \
-        /lustre/home/acct-medkkw/medlyb/soft/annovar/humandb/ \
+    perl ${params.annovar_path}/table_annovar.pl  ${sample_id}.${type}.snpdb155.vcf \
+        ${params.annovar_db}/ \
         -buildver hg38 \
-        -protocol refGene,rmsk,gff3,cosmic87,mcap,revel,clinvar_20221231,exac03,dbnsfp35a,gnomad312_genome \
-        --gff3dbfile hg38_genehancer.txt \
-        -operation g,r,r,f,f,f,f,f,f,f, \
+        -protocol ${params.annovar_protocol} \
+        --gff3dbfile ${params.annovar_gff3db} \
+        -operation ${params.annovar_operation} \
         -vcfinput --remove --polish \
         --outfile  ${sample_id}.${type}.snpdb155
     rm  ${sample_id}.${type}.snpdb155.vcf  ${sample_id}.${type}.snpdb155.avinput &&\
-    annovar2maf_multitype.pl  ${sample_id}.${type}.snpdb155.hg38_multianno.txt $sample_id $type CH_LUP > ${sample_id}.${type}.snpdb155.hg38_multianno.maf
+    annovar2maf_multitype.pl  ${sample_id}.${type}.snpdb155.hg38_multianno.txt $sample_id $type ${params.source_id} > ${sample_id}.${type}.snpdb155.hg38_multianno.maf
     bcftools view --threads $task.cpus -Oz -l 9  -o  ${sample_id}.${type}.snpdb155.hg38_multianno.vcf.gz  ${sample_id}.${type}.snpdb155.hg38_multianno.vcf && rm  ${sample_id}.${type}.snpdb155.hg38_multianno.vcf
     bcftools index --threads $task.cpus -t  ${sample_id}.${type}.snpdb155.hg38_multianno.vcf.gz
     gzip ${sample_id}.${type}.snpdb155.hg38_multianno.maf
