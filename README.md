@@ -2,6 +2,12 @@
 
 ClinDnaVar_NF is a clinical-grade DNA sequencing variant calling workflow for WES, targeted panels, and WGS, built with Nextflow DSL2. It is also suitable for high-depth panel analysis of clonal hematopoiesis of indeterminate potential (CHIP) mutations. The pipeline covers end-to-end processing from raw FASTQ to annotated variant outputs: QC, read filtering, alignment, duplicate handling, BQSR, germline calling, multiple somatic callers, annotation, and MAF aggregation. Caller execution is configurable via parameters so you can tailor the workflow to the assay and use case.
 
+## Related Publication
+
+- Please cite this article as: Liu Yb, Xu Yy, Yang Sz, Song H, Jiao B, Tan Y, Strategies and challenges in the detection of clonal hematopoiesis: current advances and future perspectives, *LabMed Discovery*, https://doi.org/10.1016/j.lmd.2026.100120
+  
+![Clonal hematopoiesis review figure](assets/CH.png)
+
 ## Features
 
 - FastQC + fastp for QC and read filtering
