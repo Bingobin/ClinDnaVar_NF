@@ -6,7 +6,9 @@ ClinDnaVar_NF is a clinical-grade DNA sequencing variant calling workflow for WE
 
 - Please cite this article as: Liu Yb, Xu Yy, Yang Sz, Song H, Jiao B, Tan Y, Strategies and challenges in the detection of clonal hematopoiesis: current advances and future perspectives, *LabMed Discovery*, https://doi.org/10.1016/j.lmd.2026.100120
   
-![Clonal hematopoiesis review figure](assets/CH.png)
+<p align="center">
+  <img src="assets/CH.png" alt="Clonal hematopoiesis review figure" width="700" />
+</p>
 
 ## Features
 
