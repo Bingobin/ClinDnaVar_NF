@@ -4,18 +4,21 @@ use warnings;
 use strict;
 use Getopt::Long;
 
-my ($maf, $help);
+my ($maf, $retain_mode, $help);
 GetOptions(
 	"maf:s" => \$maf,
+	"retain_mode:s" => \$retain_mode,
 	"h"=>\$help,
 );
 
 my $usage=<<USAGE;
 Discription: Combind the maf resut from all mutation callers (Mutect2, VaiDict, LoFreq, Pisces, HapCaller);
-usage:perl $0 -maf <multicaller.merge.maf>
+usage:perl $0 -maf <multicaller.merge.maf> [-retain_mode all|exonic]
 USAGE
 
 die $usage if (!$maf || $help);
+$retain_mode = defined $retain_mode ? lc($retain_mode) : "exonic";
+die "Unsupported -retain_mode: $retain_mode\n$usage" unless $retain_mode =~ /^(all|exonic)$/;
 
 my %hash;
 open IN, "$maf" or die $!;
@@ -28,7 +31,7 @@ maf_input($maf, \%hash);
 
 for my $i (sort keys %hash){
 	#next if ($hash{$i}{"COMMON"} == 1);
-	next unless ($hash{$i}{"Variant_Classification"} =~ /(Splice|Mutation|Frame)/i);
+	next if ($retain_mode eq "exonic" && $hash{$i}{"Variant_Classification"} !~ /(Splice|Mutation|Frame)/i);
 	my $caller_num = scalar(@{$hash{$i}{'Mutation_Status'}});
 	#	next if ($caller_num < 2);
 	for my $j(@header){

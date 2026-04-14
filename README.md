@@ -153,6 +153,7 @@ Key parameters in `nextflow.config`:
 - `--no_umi_panel_call`: legacy non-UMI panel switch; `assay_mode=panel_no_umi` is preferred
 - `--depth_thresholds`: optional mosdepth thresholds, for example `100,200,500,1000`
 - `--input_type`: `fastq` or `bam` (default: `fastq`)
+- `--maf_retain_mode`: `exonic` or `all` for multicaller MAF merge output (default: `exonic`)
 - `--cnvkit`: enable CNVKit batch run (default: `false`)
 - `--cnv_targets`: target BED for CNVKit (default: `assets/wes.target.hg38.f.bed`)
 - `--cnv_annotate`: refFlat annotation for CNVKit
@@ -210,6 +211,7 @@ Main output folders (under `--outdir`):
 - The pipeline uses fixed paths for some reference resources in `nextflow.config` and `bin/get_germline.pl`. Update these paths to match your environment.
 - When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
 - Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
+- `--maf_retain_mode exonic` keeps coding/splice/frame-shift style records in the merged MAF; `--maf_retain_mode all` keeps all annotated records.
 - For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` or other whole-genome-appropriate resources so interval-restricted steps are not forced to panel/WES targets.
 - Conda is enabled in `nextflow.config`; ensure `conda` is available in PATH (or run with `-with-conda`).
 - `get_germline.pl` generates a SLURM script and executes it. Ensure SLURM is available or replace with your scheduler/job runner.
