@@ -100,6 +100,15 @@ Basic run:
 nextflow run main.nf --input samplesheet.test.csv
 ```
 
+Select assay type with `--assay_mode`:
+
+```bash
+nextflow run main.nf --input samplesheet.test.csv --assay_mode wes
+nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals ''
+nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_no_umi
+nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_umi
+```
+
 Select callers with `--callers` (comma-separated):
 
 ```bash
@@ -118,10 +127,11 @@ Supported values:
 
 If no callers are selected, annotation and MAF combine steps are skipped.
 
-Enable UMI-based duplicate handling (front/back 4bp UMI) with `--use_umi`:
+Legacy switches are still supported:
 
 ```bash
 nextflow run main.nf --input samplesheet.test.csv --use_umi true
+nextflow run main.nf --input samplesheet.test.csv --no_umi_panel_call true
 ```
 
 ## Parameters
@@ -137,8 +147,11 @@ Key parameters in `nextflow.config`:
 - `--snpdb`: dbSNP VCF
 - `--bed`: capture BED
 - `--intervals`: intervals list
+- `--assay_mode`: `wes`, `wgs`, `panel_umi`, or `panel_no_umi` (default: `wes`)
 - `--callers`: enabled callers (default: `mutect2,lofreq,vardict,pisces,germline`)
-- `--use_umi`: enable UMI path (default: `false`)
+- `--use_umi`: legacy UMI switch; `assay_mode=panel_umi` is preferred
+- `--no_umi_panel_call`: legacy non-UMI panel switch; `assay_mode=panel_no_umi` is preferred
+- `--depth_thresholds`: optional mosdepth thresholds, for example `100,200,500,1000`
 - `--input_type`: `fastq` or `bam` (default: `fastq`)
 - `--cnvkit`: enable CNVKit batch run (default: `false`)
 - `--cnv_targets`: target BED for CNVKit (default: `assets/wes.target.hg38.f.bed`)
@@ -195,6 +208,9 @@ Main output folders (under `--outdir`):
 ## Notes
 
 - The pipeline uses fixed paths for some reference resources in `nextflow.config` and `bin/get_germline.pl`. Update these paths to match your environment.
+- When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
+- Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
+- For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` or other whole-genome-appropriate resources so interval-restricted steps are not forced to panel/WES targets.
 - Conda is enabled in `nextflow.config`; ensure `conda` is available in PATH (or run with `-with-conda`).
 - `get_germline.pl` generates a SLURM script and executes it. Ensure SLURM is available or replace with your scheduler/job runner.
 

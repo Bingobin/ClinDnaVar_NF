@@ -8,8 +8,10 @@ log.info """\
     Sample Info :  ${params.input}
     Project Dir :  $projectDir
     Reference   :  ${params.reference}
+    Assay Mode  :  ${params.assay_mode}
     Capture BED :  ${params.bed}
     Input Type  :  ${params.input_type}
+    No UMI Call :  ${params.no_umi_panel_call}
     CNVKit Run  :  ${params.cnvkit}
     Only CNV    :  ${params.only_cnv}
     Only Depth  :  ${params.only_depth}
@@ -38,6 +40,13 @@ workflow {
     def input_header = new File(params.input.toString()).withReader { it.readLine() }
     def input_sep = (input_header != null && input_header.contains('\t')) ? '\t' : ','
     def input_type = params.input_type ? params.input_type.toString().toLowerCase() : 'fastq'
+    def assay_mode = params.assay_mode ? params.assay_mode.toString().toLowerCase() : 'wes'
+    def valid_assay_modes = ['wes', 'wgs', 'panel_umi', 'panel_no_umi'] as Set
+    if (!valid_assay_modes.contains(assay_mode)) {
+        error "Unsupported --assay_mode '${params.assay_mode}'. Supported values: wes, wgs, panel_umi, panel_no_umi"
+    }
+    def use_umi_mode = assay_mode == 'panel_umi' || params.use_umi
+
     if (input_type == 'bam') {
         Channel.fromPath(params.input)
             .splitCsv(header: true, sep: input_sep)
@@ -55,7 +64,7 @@ workflow {
     }
     if (input_type == 'bam') {
         ch_bqsr = [bam: ch_input_bam]
-    } else if (params.use_umi) {
+    } else if (use_umi_mode) {
         ch_umi_bam = RM_UMI_DUP(ch_input_bam)
         ch_bqsr = GATK_BQSR(ch_umi_bam.bam)
     } else {

@@ -25,8 +25,9 @@ process Mutect2_Call {
     tuple val(sample_id), val("Mutect2"), path("${sample_id}.mutect2.norm.vcf.*")
 
     script:
+    def intervalsArg = params.intervals ? "-L ${params.intervals}" : ""
     """
-    gatk --java-options "-Xmx${task.cpus * 4}g" Mutect2 --native-pair-hmm-threads $task.cpus -R ${params.reference} -I $bam -O ${sample_id}.mutect2.vcf.gz -L ${params.intervals} --read-index $bai --f1r2-tar-gz mutect2.f1r2.tar.gz --max-reads-per-alignment-start 0
+    gatk --java-options "-Xmx${task.cpus * 4}g" Mutect2 --native-pair-hmm-threads $task.cpus -R ${params.reference} -I $bam -O ${sample_id}.mutect2.vcf.gz ${intervalsArg} --read-index $bai --f1r2-tar-gz mutect2.f1r2.tar.gz --max-reads-per-alignment-start 0
     gatk --java-options "-Xmx${task.cpus * 4}g" LearnReadOrientationModel -I  mutect2.f1r2.tar.gz -O mutect2.atrifact_prior.tar.gz
     gatk --java-options "-Xmx${task.cpus * 4}g" FilterMutectCalls -R ${params.reference} -V ${sample_id}.mutect2.vcf.gz -ob-priors mutect2.atrifact_prior.tar.gz -O ${sample_id}.mutect2.filtered.vcf.gz
     bcftools norm --threads $task.cpus  --check-ref w  --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.mutect2.norm.vcf.gz  ${sample_id}.mutect2.filtered.vcf.gz

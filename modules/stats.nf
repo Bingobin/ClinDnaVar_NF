@@ -10,8 +10,11 @@ process BAM_DEPTH {
     tuple val(sample_id), path("${sample_id}.depth.*"), emit: depth
 
     script:
+    def assayMode = params.assay_mode ? params.assay_mode.toString().toLowerCase() : "wes"
+    def bedArg = params.bed ? "-b ${params.bed}" : ""
+    def thresholds = params.depth_thresholds ? params.depth_thresholds : (assayMode.startsWith("panel") ? "100,200,500,1000" : (assayMode == "wgs" ? "10,20,30" : "10,20,50,100"))
     """
-    mosdepth_d4 -t $task.cpus -b ${params.bed} -f ${params.reference} -T 10,20,50,100 ${sample_id}.depth ${bam[0]}
+    mosdepth_d4 -t $task.cpus ${bedArg} -f ${params.reference} -T ${thresholds} ${sample_id}.depth ${bam[0]}
     """
 }
 
@@ -26,7 +29,8 @@ process VCF_STATS {
     tuple val(sample_id), val(type), path("${sample_id}.${type}.bcftools.stats")
 
     script:
+    def regionsArg = params.bed ? "-R ${params.bed}" : ""
     """
-    bcftools stats ${vcf[0]} -F ${params.reference} -R ${params.bed} --threads $task.cpus > ${sample_id}.${type}.bcftools.stats
+    bcftools stats ${vcf[0]} -F ${params.reference} ${regionsArg} --threads $task.cpus > ${sample_id}.${type}.bcftools.stats
     """
 }
