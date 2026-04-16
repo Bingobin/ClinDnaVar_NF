@@ -9,9 +9,12 @@ from typing import Iterable, List
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Filter MAF records for non-UMI panel data. By default, filters SNP/indel "
-            "records with COMMON == 1, VAF < 0.01, VAF > 0.99, DEPTH < 500, or indel "
-            "length > 20 bp."
+            "Filter merged MAF records for non-UMI panel data. By default, only SNP and "
+            "indel records are evaluated. A record is filtered if COMMON == 1, if Mean_VAF "
+            "is < 0.01 or > 0.99, if mean DEPTH is < 500, or if an indel length is > 20 bp. "
+            "For Mutect2-only records, FILTER must be PASS. For records supported only by "
+            "LoFreq, Pisces, and/or VarDict, all FILTER values must be PASS and Mean_VAF "
+            "must be > 0.05."
         )
     )
     parser.add_argument("maf", help="Input MAF/TSV file")
@@ -46,9 +49,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--single-caller-min-vaf",
+        "--lpv-only-min-vaf",
+        dest="lpv_only_min_vaf",
         type=float,
         default=0.05,
-        help="Minimum Mean_VAF for non-Mutect2 single-caller records (default: 0.05)",
+        help=(
+            "Minimum Mean_VAF for variants supported only by LoFreq/Pisces/VarDict "
+            "(default: 0.05)"
+        ),
     )
     return parser.parse_args()
 
@@ -111,11 +119,8 @@ def split_callers(row: dict) -> List[str]:
     return split_values(row.get("Mutation_Status", ""))
 
 
-def single_caller_name(row: dict) -> str:
-    callers = split_callers(row)
-    if len(callers) == 1:
-        return callers[0]
-    return ""
+def caller_names(row: dict) -> List[str]:
+    return [caller.lower() for caller in split_callers(row)]
 
 
 def numeric_int(raw: str, default: int = 0) -> int:
@@ -129,16 +134,25 @@ def filter_values(row: dict) -> List[str]:
     return split_values(row.get("FILTER", ""))
 
 
-def is_pass_only(row: dict) -> bool:
+def all_filters_pass(row: dict) -> bool:
     filters = filter_values(row)
-    return len(filters) == 1 and filters[0].upper() == "PASS"
+    return bool(filters) and all(filter_value.upper() == "PASS" for filter_value in filters)
+
+
+def is_mutect2_only(callers: List[str]) -> bool:
+    return len(callers) == 1 and callers[0] == "mutect2"
+
+
+def is_lpv_only(callers: List[str]) -> bool:
+    allowed = {"lofreq", "pisces", "vardict"}
+    return bool(callers) and set(callers).issubset(allowed)
 def evaluate_filters(
     row: dict,
     min_vaf: float,
     max_vaf: float,
     min_depth: float,
     max_indel_len: int,
-    single_caller_min_vaf: float,
+    lpv_only_min_vaf: float,
 ) -> List[str]:
     reasons: List[str] = []
 
@@ -161,18 +175,15 @@ def evaluate_filters(
     if is_indel(row) and indel_length(row) > max_indel_len:
         reasons.append("LINDEL")
 
-    n_callers = numeric_int(row.get("N_Callers", "0"))
-    filters = filter_values(row)
-    caller = single_caller_name(row).lower()
-
-    if n_callers == 1:
-        if not is_pass_only(row):
+    callers = caller_names(row)
+    if is_mutect2_only(callers):
+        if not all_filters_pass(row):
             reasons.append("NPASS")
-        if caller == "mutect2":
-            pass
-        else:
-            if vaf <= single_caller_min_vaf:
-                reasons.append("SCVAF")
+    elif is_lpv_only(callers):
+        if not all_filters_pass(row):
+            reasons.append("NPASS")
+        if vaf <= lpv_only_min_vaf:
+            reasons.append("LPVVAF")
 
     return reasons
 
@@ -206,7 +217,7 @@ def main() -> int:
                 max_vaf=args.max_vaf,
                 min_depth=args.min_depth,
                 max_indel_len=args.max_indel_len,
-                single_caller_min_vaf=args.single_caller_min_vaf,
+                lpv_only_min_vaf=args.lpv_only_min_vaf,
             )
             if args.keep_filtered:
                 row["FILTER_C"] = "PASS" if not reasons else ";".join(reasons)
