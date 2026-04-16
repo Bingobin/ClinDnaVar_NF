@@ -10,8 +10,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Filter merged MAF records for non-UMI panel data. By default, only SNP and "
-            "indel records are evaluated. A record is filtered if COMMON == 1, if Mean_VAF "
-            "is < 0.01 or > 0.99, if mean DEPTH is < 500, or if an indel length is > 20 bp. "
+            "indel records are evaluated. A record is filtered if COMMON == 1, or if "
+            "gnomad312_AF_all or gnomad312_AF_eas is > 0.01, if Mean_VAF is < 0.01 or > 0.99, "
+            "if mean DEPTH is < 500, or if an indel length is > 20 bp. "
             "Single-caller records are removed. Records supported only by LoFreq, Pisces, "
             "and/or VarDict are removed. If Mutect2 supports a record, the corresponding "
             "Mutect2 FILTER entry must be PASS. Indels overlapping RepeatMasker "
@@ -118,6 +119,16 @@ def any_common(raw: str) -> bool:
     return False
 
 
+def any_af_above(raw: str, threshold: float) -> bool:
+    for item in split_values(raw):
+        try:
+            if float(item) > threshold:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def is_snp(row: dict) -> bool:
     variant_type = row.get("Variant_Type", "").upper()
     if variant_type == "SNP":
@@ -204,7 +215,11 @@ def evaluate_filters(
     if not (is_snp(row) or is_indel(row)):
         return reasons
 
-    if any_common(row.get("COMMON", "0")):
+    if (
+        any_common(row.get("COMMON", "0"))
+        or any_af_above(row.get("gnomad312_AF_all", "0"), 0.01)
+        or any_af_above(row.get("gnomad312_AF_eas", "0"), 0.01)
+    ):
         reasons.append("COMMON")
 
     vaf = numeric_mean(row.get("Mean_VAF", "0"))
