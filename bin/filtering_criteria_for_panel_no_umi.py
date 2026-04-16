@@ -12,9 +12,10 @@ def parse_args() -> argparse.Namespace:
             "Filter merged MAF records for non-UMI panel data. By default, only SNP and "
             "indel records are evaluated. A record is filtered if COMMON == 1, if Mean_VAF "
             "is < 0.01 or > 0.99, if mean DEPTH is < 500, or if an indel length is > 20 bp. "
-            "For Mutect2-only records, FILTER must be PASS. For records supported only by "
-            "LoFreq, Pisces, and/or VarDict, all FILTER values must be PASS and Mean_VAF "
-            "must be > 0.05."
+            "Single-caller records are removed. Records supported only by LoFreq, Pisces, "
+            "and/or VarDict are removed. If Mutect2 supports a record, the corresponding "
+            "Mutect2 FILTER entry must be PASS. Indels overlapping RepeatMasker "
+            "(RMSK != NA) are removed."
         )
     )
     parser.add_argument("maf", help="Input MAF/TSV file")
@@ -57,6 +58,34 @@ def parse_args() -> argparse.Namespace:
             "Minimum Mean_VAF for variants supported only by LoFreq/Pisces/VarDict "
             "(default: 0.05)"
         ),
+    )
+    parser.add_argument(
+        "--keep-lpv-only",
+        dest="remove_lpv_only",
+        action="store_false",
+        default=True,
+        help="Do not remove records supported only by LoFreq/Pisces/VarDict",
+    )
+    parser.add_argument(
+        "--keep-single-caller",
+        dest="remove_single_caller",
+        action="store_false",
+        default=True,
+        help="Do not remove records supported by only one caller",
+    )
+    parser.add_argument(
+        "--no-require-mutect2-pass",
+        dest="require_mutect2_pass",
+        action="store_false",
+        default=True,
+        help="Do not require the Mutect2-specific FILTER value to be PASS",
+    )
+    parser.add_argument(
+        "--keep-rmsk-indel",
+        dest="remove_rmsk_indel",
+        action="store_false",
+        default=True,
+        help="Do not remove indels with RMSK value not equal to NA",
     )
     return parser.parse_args()
 
@@ -146,6 +175,18 @@ def is_mutect2_only(callers: List[str]) -> bool:
 def is_lpv_only(callers: List[str]) -> bool:
     allowed = {"lofreq", "pisces", "vardict"}
     return bool(callers) and set(callers).issubset(allowed)
+
+
+def get_mutect2_filter_values(row: dict) -> List[str]:
+    callers = split_callers(row)
+    filters = filter_values(row)
+    return [
+        filters[idx]
+        for idx, caller in enumerate(callers)
+        if idx < len(filters) and caller.lower() == "mutect2"
+    ]
+
+
 def evaluate_filters(
     row: dict,
     min_vaf: float,
@@ -153,6 +194,10 @@ def evaluate_filters(
     min_depth: float,
     max_indel_len: int,
     lpv_only_min_vaf: float,
+    remove_lpv_only: bool,
+    remove_single_caller: bool,
+    require_mutect2_pass: bool,
+    remove_rmsk_indel: bool,
 ) -> List[str]:
     reasons: List[str] = []
 
@@ -174,9 +219,19 @@ def evaluate_filters(
 
     if is_indel(row) and indel_length(row) > max_indel_len:
         reasons.append("LINDEL")
+    if remove_rmsk_indel and is_indel(row) and row.get("RMSK", "NA") != "NA":
+        reasons.append("RMSK_INDEL")
 
     callers = caller_names(row)
-    if is_mutect2_only(callers):
+    if remove_single_caller and len(callers) == 1:
+        reasons.append("SINGLE")
+    if remove_lpv_only and is_lpv_only(callers):
+        reasons.append("LPV_ONLY")
+    if require_mutect2_pass and "mutect2" in callers:
+        mutect2_filters = get_mutect2_filter_values(row)
+        if not mutect2_filters or any(filter_value.upper() != "PASS" for filter_value in mutect2_filters):
+            reasons.append("M2NPASS")
+    elif is_mutect2_only(callers):
         if not all_filters_pass(row):
             reasons.append("NPASS")
     elif is_lpv_only(callers):
@@ -218,6 +273,10 @@ def main() -> int:
                 min_depth=args.min_depth,
                 max_indel_len=args.max_indel_len,
                 lpv_only_min_vaf=args.lpv_only_min_vaf,
+                remove_lpv_only=args.remove_lpv_only,
+                remove_single_caller=args.remove_single_caller,
+                require_mutect2_pass=args.require_mutect2_pass,
+                remove_rmsk_indel=args.remove_rmsk_indel,
             )
             if args.keep_filtered:
                 row["FILTER_C"] = "PASS" if not reasons else ";".join(reasons)
