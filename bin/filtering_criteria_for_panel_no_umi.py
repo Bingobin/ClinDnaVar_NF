@@ -10,7 +10,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Filter MAF records for non-UMI panel data. By default, filters SNP/indel "
-            "records with COMMON == 1, VAF < 0.01, DEPTH < 500, or indel length > 20 bp."
+            "records with COMMON == 1, VAF < 0.01, VAF > 0.99, DEPTH < 500, or indel "
+            "length > 20 bp."
         )
     )
     parser.add_argument("maf", help="Input MAF/TSV file")
@@ -19,6 +20,12 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.01,
         help="Minimum VAF required for SNP/indel records (default: 0.01)",
+    )
+    parser.add_argument(
+        "--max-vaf",
+        type=float,
+        default=0.99,
+        help="Maximum VAF allowed for SNP/indel records (default: 0.99)",
     )
     parser.add_argument(
         "--min-depth",
@@ -128,6 +135,7 @@ def is_pass_only(row: dict) -> bool:
 def evaluate_filters(
     row: dict,
     min_vaf: float,
+    max_vaf: float,
     min_depth: float,
     max_indel_len: int,
     single_caller_min_vaf: float,
@@ -143,6 +151,8 @@ def evaluate_filters(
     vaf = numeric_mean(row.get("Mean_VAF", "0"))
     if vaf < min_vaf:
         reasons.append("LVAF")
+    if vaf > max_vaf:
+        reasons.append("HVAF")
 
     depth = numeric_mean(row.get("DEPTH", "0"))
     if depth < min_depth:
@@ -193,6 +203,7 @@ def main() -> int:
             reasons = evaluate_filters(
                 row,
                 min_vaf=args.min_vaf,
+                max_vaf=args.max_vaf,
                 min_depth=args.min_depth,
                 max_indel_len=args.max_indel_len,
                 single_caller_min_vaf=args.single_caller_min_vaf,
