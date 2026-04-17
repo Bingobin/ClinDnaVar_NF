@@ -55,6 +55,7 @@ Custom scripts in `bin/` are used by the workflow and should remain in PATH (Nex
 - `annovar2maf_multitype.pl`
 - `maf_sort_by_pos.pl`
 - `combind_maf_v2.pl`
+- `annotate_maf_with_vcf_info.py` (append raw INFO from a reference/normal VCF onto a MAF by variant match, including ANNOVAR/MAF-style indels represented with `-` and shifted coordinates)
 
 ## Input
 
