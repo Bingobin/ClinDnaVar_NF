@@ -180,7 +180,7 @@ process GATK_CALL_GERM {
     rm -rf ${sample_id}_DB
 
     # Step 5: bcftools normalize
-    bcftools norm --threads $task.cpus --check-ref w --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.HapCaller.norm.vcf.gz ${sample_id}.VQSR.sort.vcf.gz
+    bcftools norm --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.HapCaller.norm.vcf.gz ${sample_id}.VQSR.sort.vcf.gz
 
     bcftools index --threads $task.cpus -t ${sample_id}.HapCaller.norm.vcf.gz
     """
