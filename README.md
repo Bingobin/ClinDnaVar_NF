@@ -106,6 +106,7 @@ Select assay type with `--assay_mode`:
 ```bash
 nextflow run main.nf --input samplesheet.test.csv --assay_mode wes
 nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals ''
+nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals '' --cnvkit true --cnv_access /path/to/access-5kb-mappable.hg38.bed
 nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_no_umi
 nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_umi
 ```
@@ -156,14 +157,16 @@ Key parameters in `nextflow.config`:
 - `--input_type`: `fastq` or `bam` (default: `fastq`)
 - `--maf_retain_mode`: `exonic` or `all` for multicaller MAF merge output (default: `exonic`)
 - `--cnvkit`: enable CNVKit batch run (default: `false`)
-- `--cnv_targets`: target BED for CNVKit (default: `assets/wes.target.hg38.f.bed`)
+- `--cnv_method`: CNVKit method override; default is automatic (`wgs` for WGS, `hybrid` otherwise)
+- `--cnv_targets`: target BED for CNVKit; defaults to `--bed` for non-WGS modes when unset
+- `--cnv_access`: accessible regions BED for CNVKit, useful for WGS
 - `--cnv_annotate`: refFlat annotation for CNVKit
 - `--cnv_normal`: optional normal BAM(s) for CNVKit; use `true` or `self` to pass `--normal` with no file (self-normal)
 - `--cnvkit_conda`: conda env name/path for CNVKit (default: `cnvkit`)
 - `--only_cnv`: run only CNVKit after BQSR (default: `false`)
 - `--only_depth`: run only depth after BQSR (default: `false`)
 
-CNVKit runs with `--processes $task.cpus` inside the CNV module.
+CNVKit runs with `--processes $task.cpus` inside the CNV module. In WGS mode, CNVKit is run with `--method wgs`, target BED is not passed, and `--cnv_access` is used when provided.
 
 Default process resources (can be overridden per process):
 
