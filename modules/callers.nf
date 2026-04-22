@@ -1,3 +1,26 @@
+def paramValue(value) {
+    if (value == null) {
+        return ""
+    }
+
+    def text = value.toString().trim()
+    if (!text || text.equalsIgnoreCase("true") || text.equalsIgnoreCase("false") || text.equalsIgnoreCase("null")) {
+        return ""
+    }
+
+    return text
+}
+
+def gatkIntervalsArg(intervals) {
+    def value = paramValue(intervals)
+    return value ? "-L ${value}" : ""
+}
+
+def optionArg(option, value) {
+    def text = paramValue(value)
+    return text ? "${option} ${text}" : ""
+}
+
 process DeepVariant_CALL {
     tag "DeepVariant on $sample_id"
 
@@ -9,8 +32,10 @@ process DeepVariant_CALL {
     tuple val(sample_id), path("${sample_id}.g.vcf.gz"), emit: gvcf
 
     script:
+    def regionsArg = optionArg("--regions", params.bed)
+    def modelType = params.assay_mode && params.assay_mode.toString().toLowerCase() == "wgs" ? "WGS" : "WES"
     """
-    deepvariant --model_type=WES --ref=${params.reference} --reads=${bam[0]} --output_vcf=${sample_id}.vcf.gz --output_gvcf= ${sample_id}.g.vcf.gz --num_shards=$task.cpus --regions ${params.bed}
+    deepvariant --model_type=${modelType} --ref=${params.reference} --reads=${bam[0]} --output_vcf=${sample_id}.vcf.gz --output_gvcf=${sample_id}.g.vcf.gz --num_shards=$task.cpus ${regionsArg}
     """
 }
 
@@ -25,7 +50,7 @@ process Mutect2_Call {
     tuple val(sample_id), val("Mutect2"), path("${sample_id}.mutect2.norm.vcf.*")
 
     script:
-    def intervalsArg = params.intervals ? "-L ${params.intervals}" : ""
+    def intervalsArg = gatkIntervalsArg(params.intervals)
     """
     gatk --java-options "-Xmx${task.cpus * 4}g" Mutect2 --native-pair-hmm-threads $task.cpus -R ${params.reference} -I $bam -O ${sample_id}.mutect2.vcf.gz ${intervalsArg} --read-index $bai --f1r2-tar-gz mutect2.f1r2.tar.gz --max-reads-per-alignment-start 0
     gatk --java-options "-Xmx${task.cpus * 4}g" LearnReadOrientationModel -I  mutect2.f1r2.tar.gz -O mutect2.atrifact_prior.tar.gz
@@ -102,10 +127,11 @@ process LoFreq_Call {
     tuple val(sample_id), val("LoFreq"), path("${sample_id}.lofreq.norm.vcf.*")
 
     script:
+    def bedArg = optionArg("--bed", params.bed)
     """
     lofreq indelqual --dindel -f ${params.reference} -o ${sample_id}.indel.bam ${bam}
     samtools index ${sample_id}.indel.bam
-    lofreq call-parallel --pp-threads $task.cpus --call-indels -f ${params.reference} -o ${sample_id}.lofreq.vcf ${sample_id}.indel.bam --bed ${params.bed}
+    lofreq call-parallel --pp-threads $task.cpus --call-indels -f ${params.reference} -o ${sample_id}.lofreq.vcf ${sample_id}.indel.bam ${bedArg}
     lofreq_reformat.pl  ${sample_id}.lofreq.vcf ${sample_id} > ${sample_id}.lofreq.reformat.vcf
     gatk --java-options "-Xmx${task.cpus * 4}g" MergeVcfs -I ${sample_id}.lofreq.reformat.vcf -O ${sample_id}.lofreq.reformat.vcf.gz -D ${params.ref_dict}
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz  -o ${sample_id}.lofreq.norm.vcf.gz  ${sample_id}.lofreq.reformat.vcf.gz
@@ -125,8 +151,9 @@ process VarDict_Call {
     tuple val(sample_id), val("VarDict"), path("${sample_id}.vardict.norm.vcf.*")
 
     script:
+    def bedValue = paramValue(params.bed)
     """
-    vardict-java -U -G ${params.reference} -f 0.0001 -N $sample_id  -b ${bam} -deldupvar -Q 10  -c 1 -S 2 -E 3 -g 4 -F 0x704 -th $task.cpus  -fisher ${params.bed} | var2vcf_valid.pl -N $sample_id -E -f 0.0001 > ${sample_id}.vardict.vcf
+    vardict-java -U -G ${params.reference} -f 0.0001 -N $sample_id  -b ${bam} -deldupvar -Q 10  -c 1 -S 2 -E 3 -g 4 -F 0x704 -th $task.cpus  -fisher ${bedValue} | var2vcf_valid.pl -N $sample_id -E -f 0.0001 > ${sample_id}.vardict.vcf
     gatk --java-options "-Xmx${task.cpus * 4}g" MergeVcfs -I ${sample_id}.vardict.vcf -O ${sample_id}.vardict.vcf.gz -D ${params.ref_dict}
     bcftools filter --threads $task.cpus -e "((FMT/AF[0] * FMT/DP < 6) && ((INFO/MQ < 55.0 && INFO/NM > 1.0) || (INFO/MQ < 60.0 && INFO/NM > 3.0) || (FMT/DP < 6500) || (INFO/QUAL < 27)))" -Oz  -o ${sample_id}.vardict.f.vcf.gz ${sample_id}.vardict.vcf.gz
     bcftools index ${sample_id}.vardict.f.vcf.gz
@@ -146,9 +173,10 @@ process Pisces_Call {
     tuple val(sample_id), val("Pisces"), path("${sample_id}.pisces.norm.vcf.*")
 
     script:
+    def intervalsArg = optionArg("-i", params.bed)
     """
     mv $bam ${sample_id}.bam &&  mv $bai ${sample_id}.bam.bai
-    pisces -o pisces_result -bam ${sample_id}.bam -g ${file(params.reference).getParent()} -i ${params.bed} -t $task.cpus --minvf 0.0005 --callmnvs false  --mindpfilter 500 --mindp 5 --threadbychr true --ssfilter false --minvq 0 --vqfilter 20  --minbq 30 --reportnocalls true --gvcf false
+    pisces -o pisces_result -bam ${sample_id}.bam -g ${file(params.reference).getParent()} ${intervalsArg} -t $task.cpus --minvf 0.0005 --callmnvs false  --mindpfilter 500 --mindp 5 --threadbychr true --ssfilter false --minvq 0 --vqfilter 20  --minbq 30 --reportnocalls true --gvcf false
     bcftools filter -i 'FILTER=="PASS"' pisces_result/${sample_id}.vcf -o ${sample_id}.pass.vcf
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.pisces.norm.vcf.gz  ${sample_id}.pass.vcf
     bcftools index --threads $task.cpus  -t ${sample_id}.pisces.norm.vcf.gz

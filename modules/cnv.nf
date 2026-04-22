@@ -51,6 +51,9 @@ process CNVKIT_BATCH {
     }
     def targets_arg = (method == "wgs" || !targetsValue) ? "" : "--targets ${targetsValue}"
     def accessValue = cnvkitParamValue(params.cnv_access)
+    if (!accessValue && method == "wgs") {
+        accessValue = cnvkitParamValue(params.bed)
+    }
     def access_arg = accessValue ? "--access ${accessValue}" : ""
     def annotateValue = cnvkitParamValue(params.cnv_annotate)
     def annotate_arg = annotateValue ? "--annotate ${annotateValue}" : ""

@@ -1,3 +1,21 @@
+def paramValue(value) {
+    if (value == null) {
+        return ""
+    }
+
+    def text = value.toString().trim()
+    if (!text || text.equalsIgnoreCase("true") || text.equalsIgnoreCase("false") || text.equalsIgnoreCase("null")) {
+        return ""
+    }
+
+    return text
+}
+
+def gatkIntervalsArg(intervals) {
+    def value = paramValue(intervals)
+    return value ? "-L ${value}" : ""
+}
+
 process GATK_rmdup {
 
     tag "MarkDuplicates on $sample_id"
@@ -35,7 +53,7 @@ process GATK_BQSR {
     tuple val(sample_id), path( "${sample_id}.recal_data.table"), path( "${sample_id}.bqsr.bam.stats") , emit: 'report'
 
     script:
-    def intervalsArg = params.intervals ? "-L ${params.intervals}" : ""
+    def intervalsArg = gatkIntervalsArg(params.intervals)
     """
     gatk --java-options "-Xmx${task.cpus * 4}g" BaseRecalibrator -I ${bam[0]} -R ${params.reference} ${intervalsArg} \
     --known-sites $params.anno/Mills_and_1000G_gold_standard.indels.hg38.vcf \
@@ -58,7 +76,7 @@ process GENOTYPE {
     tuple val(sample_id), path("${sample_id}.g.vcf.*")
 
     script:
-    def intervalsArg = params.intervals ? "-L ${params.intervals}" : ""
+    def intervalsArg = gatkIntervalsArg(params.intervals)
     """
     gatk --java-options "-Xmx${task.cpus * 4}g" HaplotypeCaller -R ${params.reference} -I ${bam[0]}  -ERC GVCF -O ${sample_id}.g.vcf.gz ${intervalsArg} -G StandardAnnotation -G AS_StandardAnnotation -G StandardHCAnnotation
     """
@@ -78,20 +96,27 @@ process GATK_CALL_GERM {
 
     script:
     def memory = "-Xmx${task.cpus * 4}g"
-    def intervalsArg = params.intervals ? "-L ${params.intervals}" : ""
-    def mergeIntervalsArg = params.intervals ? "--merge-input-intervals" : ""
-    """
-    # Step 1: GenomicsDBImport and GenotypeGVCFs
+    def intervalsArg = gatkIntervalsArg(params.intervals)
+    def mergeIntervalsArg = intervalsArg ? "--merge-input-intervals" : ""
+    def genotypeInput = intervalsArg ? "gendb://${sample_id}_DB" : "${gvcf[0]}"
+    def genomicsDbImport = intervalsArg ? """
     gatk --java-options "${memory} -Xms${task.cpus * 4}g" GenomicsDBImport \\
         --genomicsdb-workspace-path ${sample_id}_DB \\
         --tmp-dir ${params.tmp} \\
         ${intervalsArg} \\
         -V ${gvcf[0]} \\
         ${mergeIntervalsArg}
+    """ : """
+    echo "Skipping GenomicsDBImport for ${sample_id}; no GATK intervals were provided"
+    """
+    def cleanupGenomicsDb = intervalsArg ? "rm -rf ${sample_id}_DB" : ""
+    """
+    # Step 1: GenotypeGVCFs
+    ${genomicsDbImport}
 
     gatk --java-options "${memory}" GenotypeGVCFs \\
         -R ${params.reference} \\
-        -V gendb://${sample_id}_DB \\
+        -V ${genotypeInput} \\
         -O ${sample_id}.vcf.gz \\
         --tmp-dir ${params.tmp} \\
         --dbsnp ${params.snpdb}
@@ -177,7 +202,7 @@ process GATK_CALL_GERM {
     rm -f ${sample_id}.recalibrate_SNP.recal ${sample_id}.recalibrate_SNP.recal.idx
     rm -f ${sample_id}.recalibrate_INDEL.recal ${sample_id}.recalibrate_INDEL.recal.idx
     rm -f ${sample_id}.vcf.gz ${sample_id}.vcf.gz.tbi
-    rm -rf ${sample_id}_DB
+    ${cleanupGenomicsDb}
 
     # Step 5: bcftools normalize
     bcftools norm --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.HapCaller.norm.vcf.gz ${sample_id}.VQSR.sort.vcf.gz

@@ -106,6 +106,7 @@ Select assay type with `--assay_mode`:
 ```bash
 nextflow run main.nf --input samplesheet.test.csv --assay_mode wes
 nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals ''
+nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed primary_contigs.bed --intervals primary_contigs.interval_list
 nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals '' --cnvkit true --cnv_access /path/to/access-5kb-mappable.hg38.bed
 nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_no_umi
 nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_umi
@@ -166,7 +167,7 @@ Key parameters in `nextflow.config`:
 - `--only_cnv`: run only CNVKit after BQSR (default: `false`)
 - `--only_depth`: run only depth after BQSR (default: `false`)
 
-CNVKit runs with `--processes $task.cpus` inside the CNV module. In WGS mode, CNVKit is run with `--method wgs`, target BED is not passed, and `--cnv_access` is used when provided.
+CNVKit runs with `--processes $task.cpus` inside the CNV module. In WGS mode, CNVKit is run with `--method wgs`, target BED is not passed, and `--cnv_access` is used when provided. If `--cnv_access` is unset, WGS mode uses `--bed` as the CNVKit `--access` regions file.
 
 Default process resources (can be overridden per process):
 
@@ -216,7 +217,7 @@ Main output folders (under `--outdir`):
 - When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
 - Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
 - `--maf_retain_mode exonic` keeps coding/splice/frame-shift style records in the merged MAF; `--maf_retain_mode all` keeps all annotated records.
-- For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` or other whole-genome-appropriate resources so interval-restricted steps are not forced to panel/WES targets.
+- For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` for unrestricted WGS, or pass whole-genome-appropriate BED/interval-list files to keep primary contigs and exclude decoys, HLA alt contigs, or other scattered contigs.
 - Conda is enabled in `nextflow.config`; ensure `conda` is available in PATH (or run with `-with-conda`).
 - `get_germline.pl` generates a SLURM script and executes it. Ensure SLURM is available or replace with your scheduler/job runner.
 
