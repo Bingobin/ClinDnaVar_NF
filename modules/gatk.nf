@@ -16,6 +16,12 @@ def gatkIntervalsArg(intervals) {
     return value ? "-L ${value}" : ""
 }
 
+def gatkJavaOptions(task, extra = "") {
+    def heapGb = Math.max(1, Math.floor(task.memory.toGiga() * 0.8) as int)
+    def options = "-Xmx${heapGb}g"
+    return extra ? "${options} ${extra}" : options
+}
+
 process GATK_rmdup {
 
     tag "MarkDuplicates on $sample_id"
@@ -31,12 +37,12 @@ process GATK_rmdup {
     script:
     def assayMode = params.assay_mode ? params.assay_mode.toString().toLowerCase() : "wes"
     def removeDup = (params.no_umi_panel_call || assayMode == "panel_no_umi") ? "false" : "true"
-    def heapGb = Math.max(1, Math.floor(task.memory.toGiga() * 0.8) as int)
     def memoryGb = Math.max(1, Math.floor(task.memory.toGiga()) as int)
-    def defaultMaxRecords = assayMode == "wgs" ? 1000000 : memoryGb * 500000
+    def defaultMaxRecords = assayMode == "wgs" ? 1000000 : memoryGb * 400000
     def maxRecords = paramValue(params.gatk_markdup_max_records) ? params.gatk_markdup_max_records.toString().toInteger() : defaultMaxRecords
+    def javaOptions = gatkJavaOptions(task, "-XX:+UseParallelGC")
     """
-    gatk --java-options "-Xmx${heapGb}g -XX:+UseParallelGC" MarkDuplicates -I ${bam[0]} -O ${sample_id}.rmdup.bam -M ${sample_id}.rmdup.metrics --REMOVE_SEQUENCING_DUPLICATES ${removeDup} --ASSUME_SORT_ORDER coordinate --VALIDATION_STRINGENCY LENIENT --MAX_RECORDS_IN_RAM ${maxRecords} --TMP_DIR ${params.tmp}
+    gatk --java-options "${javaOptions}" MarkDuplicates -I ${bam[0]} -O ${sample_id}.rmdup.bam -M ${sample_id}.rmdup.metrics --REMOVE_SEQUENCING_DUPLICATES ${removeDup} --ASSUME_SORT_ORDER coordinate --VALIDATION_STRINGENCY LENIENT --MAX_RECORDS_IN_RAM ${maxRecords} --TMP_DIR ${params.tmp}
     samtools index ${sample_id}.rmdup.bam
     """
 }
@@ -58,13 +64,15 @@ process GATK_BQSR {
 
     script:
     def intervalsArg = gatkIntervalsArg(params.intervals)
+    def javaOptions = gatkJavaOptions(task)
+    def applyJavaOptions = gatkJavaOptions(task, "-Dsamjdk.compression_level=6")
     """
-    gatk --java-options "-Xmx${task.cpus * 4}g" BaseRecalibrator -I ${bam[0]} -R ${params.reference} ${intervalsArg} \
+    gatk --java-options "${javaOptions}" BaseRecalibrator -I ${bam[0]} -R ${params.reference} ${intervalsArg} \
     --known-sites $params.anno/Mills_and_1000G_gold_standard.indels.hg38.vcf \
     --known-sites $params.anno/dbsnp_146.hg38.vcf \
     --known-sites $params.anno/Homo_sapiens_assembly38.known_indels.vcf \
     -O ${sample_id}.recal_data.table
-    gatk --java-options "-Xmx${task.cpus * 4}g -Dsamjdk.compression_level=6" ApplyBQSR -I ${bam[0]} -R ${params.reference} --bqsr-recal-file ${sample_id}.recal_data.table -O ${sample_id}.bqsr.bam
+    gatk --java-options "${applyJavaOptions}" ApplyBQSR -I ${bam[0]} -R ${params.reference} --bqsr-recal-file ${sample_id}.recal_data.table -O ${sample_id}.bqsr.bam
     samtools stats -@ $task.cpus ${sample_id}.bqsr.bam > ${sample_id}.bqsr.bam.stats
     """
 }
@@ -81,8 +89,9 @@ process GENOTYPE {
 
     script:
     def intervalsArg = gatkIntervalsArg(params.intervals)
+    def javaOptions = gatkJavaOptions(task)
     """
-    gatk --java-options "-Xmx${task.cpus * 4}g" HaplotypeCaller -R ${params.reference} -I ${bam[0]}  -ERC GVCF -O ${sample_id}.g.vcf.gz ${intervalsArg} -G StandardAnnotation -G AS_StandardAnnotation -G StandardHCAnnotation
+    gatk --java-options "${javaOptions}" HaplotypeCaller -R ${params.reference} -I ${bam[0]}  -ERC GVCF -O ${sample_id}.g.vcf.gz ${intervalsArg} -G StandardAnnotation -G AS_StandardAnnotation -G StandardHCAnnotation
     """
 }
 
@@ -99,12 +108,12 @@ process GATK_CALL_GERM {
     tuple val(sample_id), path("*.pdf"), emit: 'report'
 
     script:
-    def memory = "-Xmx${task.cpus * 4}g"
+    def memory = gatkJavaOptions(task)
     def intervalsArg = gatkIntervalsArg(params.intervals)
     def mergeIntervalsArg = intervalsArg ? "--merge-input-intervals" : ""
     def genotypeInput = intervalsArg ? "gendb://${sample_id}_DB" : "${gvcf[0]}"
     def genomicsDbImport = intervalsArg ? """
-    gatk --java-options "${memory} -Xms${task.cpus * 4}g" GenomicsDBImport \\
+    gatk --java-options "${memory}" GenomicsDBImport \\
         --genomicsdb-workspace-path ${sample_id}_DB \\
         --tmp-dir ${params.tmp} \\
         ${intervalsArg} \\

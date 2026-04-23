@@ -154,7 +154,7 @@ Key parameters in `nextflow.config`:
 - `--callers`: enabled callers (default: `mutect2,lofreq,vardict,pisces,germline`)
 - `--use_umi`: legacy UMI switch; `assay_mode=panel_umi` is preferred
 - `--no_umi_panel_call`: legacy non-UMI panel switch; `assay_mode=panel_no_umi` is preferred
-- `--gatk_markdup_max_records`: Picard/GATK MarkDuplicates `--MAX_RECORDS_IN_RAM`; default is automatic (`1000000` for WGS, `task.memory.toGiga() * 500000` otherwise)
+- `--gatk_markdup_max_records`: Picard/GATK MarkDuplicates `--MAX_RECORDS_IN_RAM`; default is automatic (`1000000` for WGS, `task.memory.toGiga() * 400000` otherwise)
 - `--depth_thresholds`: optional mosdepth thresholds, for example `100,200,500,1000`
 - `--input_type`: `fastq` or `bam` (default: `fastq`)
 - `--maf_retain_mode`: `exonic` or `all` for multicaller MAF merge output (default: `exonic`)

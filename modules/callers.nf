@@ -21,6 +21,11 @@ def optionArg(option, value) {
     return text ? "${option} ${text}" : ""
 }
 
+def gatkJavaOptions(task) {
+    def heapGb = Math.max(1, Math.floor(task.memory.toGiga() * 0.8) as int)
+    return "-Xmx${heapGb}g"
+}
+
 process DeepVariant_CALL {
     tag "DeepVariant on $sample_id"
 
@@ -51,10 +56,11 @@ process Mutect2_Call {
 
     script:
     def intervalsArg = gatkIntervalsArg(params.intervals)
+    def javaOptions = gatkJavaOptions(task)
     """
-    gatk --java-options "-Xmx${task.cpus * 4}g" Mutect2 --native-pair-hmm-threads $task.cpus -R ${params.reference} -I $bam -O ${sample_id}.mutect2.vcf.gz ${intervalsArg} --read-index $bai --f1r2-tar-gz mutect2.f1r2.tar.gz --max-reads-per-alignment-start 0
-    gatk --java-options "-Xmx${task.cpus * 4}g" LearnReadOrientationModel -I  mutect2.f1r2.tar.gz -O mutect2.atrifact_prior.tar.gz
-    gatk --java-options "-Xmx${task.cpus * 4}g" FilterMutectCalls -R ${params.reference} -V ${sample_id}.mutect2.vcf.gz -ob-priors mutect2.atrifact_prior.tar.gz -O ${sample_id}.mutect2.filtered.vcf.gz
+    gatk --java-options "${javaOptions}" Mutect2 --native-pair-hmm-threads $task.cpus -R ${params.reference} -I $bam -O ${sample_id}.mutect2.vcf.gz ${intervalsArg} --read-index $bai --f1r2-tar-gz mutect2.f1r2.tar.gz --max-reads-per-alignment-start 0
+    gatk --java-options "${javaOptions}" LearnReadOrientationModel -I  mutect2.f1r2.tar.gz -O mutect2.atrifact_prior.tar.gz
+    gatk --java-options "${javaOptions}" FilterMutectCalls -R ${params.reference} -V ${sample_id}.mutect2.vcf.gz -ob-priors mutect2.atrifact_prior.tar.gz -O ${sample_id}.mutect2.filtered.vcf.gz
     bcftools norm --threads $task.cpus  --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.mutect2.norm.vcf.gz  ${sample_id}.mutect2.filtered.vcf.gz
     bcftools index --threads $task.cpus -t ${sample_id}.mutect2.norm.vcf.gz
     """
@@ -107,10 +113,11 @@ process Pindel_Merge {
 
     script:
     def ref = file(params.reference)
+    def javaOptions = gatkJavaOptions(task)
     """
     cat *.pindel_result.txt > ${sample_id}.pindel_result.merge.txt
     pindel2vcf -p ${sample_id}.pindel_result.merge.txt -r ${params.reference} -R ${ref.getSimpleName()} -v ${sample_id}.pindel.vcf -d 20240628 -G
-    gatk --java-options "-Xmx${task.cpus * 4}g" MergeVcfs -I ${sample_id}.pindel.vcf -O ${sample_id}.pindel.vcf.gz -D ${params.ref_dict}
+    gatk --java-options "${javaOptions}" MergeVcfs -I ${sample_id}.pindel.vcf -O ${sample_id}.pindel.vcf.gz -D ${params.ref_dict}
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.pindel.norm.vcf.gz  ${sample_id}.pindel.vcf.gz
     bcftools index --threads $task.cpus -t ${sample_id}.pindel.norm.vcf.gz
     """
@@ -128,12 +135,13 @@ process LoFreq_Call {
 
     script:
     def bedArg = optionArg("--bed", params.bed)
+    def javaOptions = gatkJavaOptions(task)
     """
     lofreq indelqual --dindel -f ${params.reference} -o ${sample_id}.indel.bam ${bam}
     samtools index ${sample_id}.indel.bam
     lofreq call-parallel --pp-threads $task.cpus --call-indels -f ${params.reference} -o ${sample_id}.lofreq.vcf ${sample_id}.indel.bam ${bedArg}
     lofreq_reformat.pl  ${sample_id}.lofreq.vcf ${sample_id} > ${sample_id}.lofreq.reformat.vcf
-    gatk --java-options "-Xmx${task.cpus * 4}g" MergeVcfs -I ${sample_id}.lofreq.reformat.vcf -O ${sample_id}.lofreq.reformat.vcf.gz -D ${params.ref_dict}
+    gatk --java-options "${javaOptions}" MergeVcfs -I ${sample_id}.lofreq.reformat.vcf -O ${sample_id}.lofreq.reformat.vcf.gz -D ${params.ref_dict}
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz  -o ${sample_id}.lofreq.norm.vcf.gz  ${sample_id}.lofreq.reformat.vcf.gz
     bcftools index --threads $task.cpus  -t ${sample_id}.lofreq.norm.vcf.gz
     """
@@ -152,9 +160,10 @@ process VarDict_Call {
 
     script:
     def bedValue = paramValue(params.bed)
+    def javaOptions = gatkJavaOptions(task)
     """
     vardict-java -U -G ${params.reference} -f 0.0001 -N $sample_id  -b ${bam} -deldupvar -Q 10  -c 1 -S 2 -E 3 -g 4 -F 0x704 -th $task.cpus  -fisher ${bedValue} | var2vcf_valid.pl -N $sample_id -E -f 0.0001 > ${sample_id}.vardict.vcf
-    gatk --java-options "-Xmx${task.cpus * 4}g" MergeVcfs -I ${sample_id}.vardict.vcf -O ${sample_id}.vardict.vcf.gz -D ${params.ref_dict}
+    gatk --java-options "${javaOptions}" MergeVcfs -I ${sample_id}.vardict.vcf -O ${sample_id}.vardict.vcf.gz -D ${params.ref_dict}
     bcftools filter --threads $task.cpus -e "((FMT/AF[0] * FMT/DP < 6) && ((INFO/MQ < 55.0 && INFO/NM > 1.0) || (INFO/MQ < 60.0 && INFO/NM > 3.0) || (FMT/DP < 6500) || (INFO/QUAL < 27)))" -Oz  -o ${sample_id}.vardict.f.vcf.gz ${sample_id}.vardict.vcf.gz
     bcftools index ${sample_id}.vardict.f.vcf.gz
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.vardict.norm.vcf.gz  ${sample_id}.vardict.f.vcf.gz
