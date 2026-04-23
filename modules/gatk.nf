@@ -31,8 +31,12 @@ process GATK_rmdup {
     script:
     def assayMode = params.assay_mode ? params.assay_mode.toString().toLowerCase() : "wes"
     def removeDup = (params.no_umi_panel_call || assayMode == "panel_no_umi") ? "false" : "true"
+    def heapGb = Math.max(1, Math.floor(task.memory.toGiga() * 0.8) as int)
+    def memoryGb = Math.max(1, Math.floor(task.memory.toGiga()) as int)
+    def defaultMaxRecords = assayMode == "wgs" ? 1000000 : memoryGb * 500000
+    def maxRecords = paramValue(params.gatk_markdup_max_records) ? params.gatk_markdup_max_records.toString().toInteger() : defaultMaxRecords
     """
-    gatk --java-options "-Xmx${task.cpus * 4}g -XX:+UseParallelGC" MarkDuplicates -I ${bam[0]} -O ${sample_id}.rmdup.bam -M ${sample_id}.rmdup.metrics --REMOVE_SEQUENCING_DUPLICATES ${removeDup} --ASSUME_SORT_ORDER coordinate --VALIDATION_STRINGENCY LENIENT --MAX_RECORDS_IN_RAM  ${task.cpus * 4 * 500000}
+    gatk --java-options "-Xmx${heapGb}g -XX:+UseParallelGC" MarkDuplicates -I ${bam[0]} -O ${sample_id}.rmdup.bam -M ${sample_id}.rmdup.metrics --REMOVE_SEQUENCING_DUPLICATES ${removeDup} --ASSUME_SORT_ORDER coordinate --VALIDATION_STRINGENCY LENIENT --MAX_RECORDS_IN_RAM ${maxRecords} --TMP_DIR ${params.tmp}
     samtools index ${sample_id}.rmdup.bam
     """
 }
