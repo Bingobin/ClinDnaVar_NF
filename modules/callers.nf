@@ -141,6 +141,7 @@ process LoFreq_Call {
     samtools index ${sample_id}.indel.bam
     lofreq call-parallel --pp-threads $task.cpus --call-indels -f ${params.reference} -o ${sample_id}.lofreq.vcf ${sample_id}.indel.bam ${bedArg}
     lofreq_reformat.pl  ${sample_id}.lofreq.vcf ${sample_id} > ${sample_id}.lofreq.reformat.vcf
+    awk 'BEGIN{FS=OFS="\t"}/^#/ {print; next}($4 !~ /[MRWSYKVHDB]/ && $5 !~ /[MRWSYKVHDB]/) {print}' ${sample_id}.lofreq.reformat.vcf > a && mv a ${sample_id}.lofreq.reformat.vcf
     gatk --java-options "${javaOptions}" MergeVcfs -I ${sample_id}.lofreq.reformat.vcf -O ${sample_id}.lofreq.reformat.vcf.gz -D ${params.ref_dict}
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz  -o ${sample_id}.lofreq.norm.vcf.gz  ${sample_id}.lofreq.reformat.vcf.gz
     bcftools index --threads $task.cpus  -t ${sample_id}.lofreq.norm.vcf.gz
