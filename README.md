@@ -173,7 +173,7 @@ CNVKit runs with `--processes $task.cpus` inside the CNV module. In WGS mode, CN
 Default process resources (can be overridden per process):
 
 - `process.cpus = 4`
-- `process.memory = 4.GB * task.cpus`; GATK MarkDuplicates uses 80% of this value as Java heap and leaves the rest for JVM/native overhead.
+- `process.memory = 4.GB * task.cpus`; GATK MarkDuplicates uses 80% of this value as Java heap and leaves the rest for JVM/native overhead. In WGS mode, VarDict uses `assets/hg38_5k_150bpOL_seg.txt.gz` as its genome tiling BED, `-f 0.01`, and 95% of the task memory as Java heap.
 
 ## Outputs
 
@@ -218,7 +218,7 @@ Main output folders (under `--outdir`):
 - When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
 - Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
 - `--maf_retain_mode exonic` keeps coding/splice/frame-shift style records in the merged MAF; `--maf_retain_mode all` keeps all annotated records.
-- For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` for unrestricted WGS, or pass whole-genome-appropriate BED/interval-list files to keep primary contigs and exclude decoys, HLA alt contigs, or other scattered contigs.
+- For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` for unrestricted WGS, or pass whole-genome-appropriate BED/interval-list files to keep primary contigs and exclude decoys, HLA alt contigs, or other scattered contigs. VarDict always uses the bundled WGS tiling BED `assets/hg38_5k_150bpOL_seg.txt.gz` in WGS mode.
 - Conda is enabled in `nextflow.config`; ensure `conda` is available in PATH (or run with `-with-conda`).
 - `get_germline.pl` generates a SLURM script and executes it. Ensure SLURM is available or replace with your scheduler/job runner.
 
