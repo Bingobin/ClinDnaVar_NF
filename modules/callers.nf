@@ -26,6 +26,11 @@ def gatkJavaOptions(task) {
     return "-Xmx${heapGb}g"
 }
 
+def vardictJavaOptions(task) {
+    def heapGb = Math.max(1, Math.floor(task.memory.toGiga() * 0.8) as int)
+    return "-Xmx${heapGb}g"
+}
+
 process DeepVariant_CALL {
     tag "DeepVariant on $sample_id"
 
@@ -162,8 +167,9 @@ process VarDict_Call {
     script:
     def bedValue = paramValue(params.bed)
     def javaOptions = gatkJavaOptions(task)
+    def vardictOptions = vardictJavaOptions(task)
     """
-    vardict-java -U -G ${params.reference} -f 0.0001 -N $sample_id  -b ${bam} -deldupvar -Q 10  -c 1 -S 2 -E 3 -g 4 -F 0x704 -th $task.cpus  -fisher ${bedValue} | var2vcf_valid.pl -N $sample_id -E -f 0.0001 > ${sample_id}.vardict.vcf
+    JAVA_TOOL_OPTIONS="${vardictOptions}" vardict-java -U -G ${params.reference} -f 0.0001 -N $sample_id  -b ${bam} -deldupvar -Q 10  -c 1 -S 2 -E 3 -g 4 -F 0x704 -th $task.cpus  -fisher ${bedValue} | var2vcf_valid.pl -N $sample_id -E -f 0.0001 > ${sample_id}.vardict.vcf
     gatk --java-options "${javaOptions}" MergeVcfs -I ${sample_id}.vardict.vcf -O ${sample_id}.vardict.vcf.gz -D ${params.ref_dict}
     bcftools filter --threads $task.cpus -e "((FMT/AF[0] * FMT/DP < 6) && ((INFO/MQ < 55.0 && INFO/NM > 1.0) || (INFO/MQ < 60.0 && INFO/NM > 3.0) || (FMT/DP < 6500) || (INFO/QUAL < 27)))" -Oz  -o ${sample_id}.vardict.f.vcf.gz ${sample_id}.vardict.vcf.gz
     bcftools index ${sample_id}.vardict.f.vcf.gz
