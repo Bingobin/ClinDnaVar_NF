@@ -45,8 +45,8 @@ process MAF_COMBIND {
     zcat ${maf[0]} | head -n 1 > maf.header
     zcat *.maf.gz | grep -v "Hugo_Symbol" > merge.tmp.file
     cat maf.header merge.tmp.file > ${sample_id}.multicaller.merge.maf && rm merge.tmp.file maf.header
-    maf_sort_by_pos.pl ${sample_id}.multicaller.merge.maf > a && mv a ${sample_id}.multicaller.merge.maf
-    combind_maf_v2.pl -maf ${sample_id}.multicaller.merge.maf -retain_mode ${params.maf_retain_mode} > ${sample_id}.multicaller.combind.maf
-    maf_sort_by_pos.pl ${sample_id}.multicaller.combind.maf > a && mv a ${sample_id}.multicaller.combind.maf
+    maf_sort_by_pos_v2.pl ${sample_id}.multicaller.merge.maf > a && mv a ${sample_id}.multicaller.merge.maf
+    combind_maf_v3.pl -maf ${sample_id}.multicaller.merge.maf -retain_mode ${params.maf_retain_mode} > ${sample_id}.multicaller.combind.maf
+    maf_sort_by_pos_v2.pl ${sample_id}.multicaller.combind.maf > a && mv a ${sample_id}.multicaller.combind.maf
     """
 }
