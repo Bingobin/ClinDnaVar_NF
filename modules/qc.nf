@@ -35,7 +35,8 @@ process FastpFilter {
     tuple val(sample_id), path("${sample_id}.filter_report.*"), emit: report
 
     script:
-    def umi_opts = params.assay_mode?.toString()?.toLowerCase() == 'panel_umi' ? '-U --umi_loc per_read --umi_prefix UMI --umi_len 4' : ''
+    def use_umi = params.assay_mode?.toString()?.toLowerCase() == 'panel_umi' || params.use_umi?.toString()?.toBoolean()
+    def umi_opts = use_umi ? '-U --umi_loc per_read --umi_prefix UMI --umi_len 4' : ''
     """
     fastp -i ${reads[0]} -I ${reads[1]} -o ${sample_id}_clean_R1.fq.gz -O ${sample_id}_clean_R2.fq.gz ${umi_opts} -w $task.cpus -j ${sample_id}.filter_report.json -h ${sample_id}.filter_report.html
     """

@@ -153,6 +153,7 @@ Key parameters in `nextflow.config`:
 - `--assay_mode`: `wes`, `wgs`, `panel_umi`, or `panel_no_umi` (default: `wes`)
 - `--callers`: enabled callers (default: `mutect2,lofreq,vardict,pisces,germline`)
 - `--use_umi`: legacy UMI switch; `assay_mode=panel_umi` is preferred
+- UMI mode assumes a dual 4 bp UMI structure, with one 4 bp UMI segment on each read (`fastp --umi_loc per_read --umi_len 4`)
 - `--no_umi_panel_call`: legacy non-UMI panel switch; `assay_mode=panel_no_umi` is preferred
 - `--gatk_markdup_max_records`: Picard/GATK MarkDuplicates `--MAX_RECORDS_IN_RAM`; default is automatic (`1000000` for WGS, `task.memory.toGiga() * 400000` otherwise)
 - `--depth_thresholds`: optional mosdepth thresholds, for example `100,200,500,1000`
@@ -215,6 +216,7 @@ Main output folders (under `--outdir`):
 ## Notes
 
 - The pipeline uses fixed paths for some reference resources in `nextflow.config` and `bin/get_germline.pl`. Update these paths to match your environment.
+- In `panel_umi` mode, or when `--use_umi true` is used, fastp extracts UMIs as two 4 bp segments by default, one from each read, and writes them to read names with the `UMI` prefix for downstream UMI duplicate removal.
 - When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
 - Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
 - `--maf_retain_mode exonic` keeps coding/splice/frame-shift style records in the merged MAF; `--maf_retain_mode all` keeps all annotated records.
