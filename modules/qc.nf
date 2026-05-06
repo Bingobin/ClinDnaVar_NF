@@ -11,9 +11,14 @@ process FASTQC {
 
     script:
     """
-    mv ${reads[0]} ${sample_id}_R1.fastq.gz
-    mv ${reads[1]} ${sample_id}_R2.fastq.gz
-    fastqc -t $task.cpus ${sample_id}_R1.fastq.gz ${sample_id}_R2.fastq.gz
+    if [[ "${reads[0]}" == *.gz ]]; then
+        ext=".fastq.gz"
+    else
+        ext=".fastq"
+    fi
+    mv ${reads[0]} ${sample_id}_R1${ext}
+    mv ${reads[1]} ${sample_id}_R2${ext}
+    fastqc -t $task.cpus ${sample_id}_R1${ext} ${sample_id}_R2${ext}
     """
 }
 
@@ -31,7 +36,6 @@ process FastpFilter {
 
     script:
     """
-    #fastp -i ${reads[0]} -I ${reads[1]} -o ${sample_id}_clean_R1.fq.gz -O ${sample_id}_clean_R2.fq.gz -U --umi_loc per_read --umi_prefix UMI --umi_len 4 -w $task.cpus -j ${sample_id}.filter_report.json -h ${sample_id}.filter_report.html
-    fastp -i ${reads[0]} -I ${reads[1]} -o ${sample_id}_clean_R1.fq.gz -O ${sample_id}_clean_R2.fq.gz -w $task.cpus -j ${sample_id}.filter_report.json -h ${sample_id}.filter_report.html
+    fastp -i ${reads[0]} -I ${reads[1]} -o ${sample_id}_clean_R1.fq.gz -O ${sample_id}_clean_R2.fq.gz ${params.assay_mode?.toString()?.toLowerCase() == 'panel_umi' ? '-U --umi_loc per_read --umi_prefix UMI --umi_len 4' : ''} -w $task.cpus -j ${sample_id}.filter_report.json -h ${sample_id}.filter_report.html
     """
 }
