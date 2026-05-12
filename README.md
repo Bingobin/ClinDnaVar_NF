@@ -219,6 +219,7 @@ Main output folders (under `--outdir`):
 - In `panel_umi` mode, or when `--use_umi true` is used, fastp extracts UMIs as two 4 bp segments by default, one from each read, and writes them to read names with the `UMI` prefix for downstream UMI duplicate removal.
 - When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
 - Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
+- Pisces defaults follow `assay_mode`: `wes` uses `--minvf 0.02 --mindpfilter 20`, `wgs` uses `--minvf 0.05 --mindpfilter 10`, and both `panel_umi` and `panel_no_umi` use `--minvf 0.0005 --mindpfilter 500`.
 - `--maf_retain_mode exonic` keeps coding/splice/frame-shift style records in the merged MAF; `--maf_retain_mode all` keeps all annotated records.
 - For `--assay_mode wgs`, pass empty `--bed '' --intervals ''` for unrestricted WGS, or pass whole-genome-appropriate BED/interval-list files to keep primary contigs and exclude decoys, HLA alt contigs, or other scattered contigs. VarDict always uses the bundled WGS tiling BED `assets/hg38_5k_150bpOL_seg.txt.gz` in WGS mode.
 - Conda is enabled in `nextflow.config`; ensure `conda` is available in PATH (or run with `-with-conda`).

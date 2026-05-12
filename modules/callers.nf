@@ -202,10 +202,14 @@ process Pisces_Call {
     tuple val(sample_id), val("Pisces"), path("${sample_id}.pisces.norm.vcf.*")
 
     script:
+    def assayMode = params.assay_mode ? params.assay_mode.toString().toLowerCase() : "wes"
+    def isPanelMode = assayMode in ["panel_umi", "panel_no_umi"]
+    def minvf = isPanelMode ? "0.0005" : (assayMode == "wgs" ? "0.05" : "0.02")
+    def mindpfilter = isPanelMode ? "500" : (assayMode == "wgs" ? "10" : "20")
     def intervalsArg = optionArg("-i", params.bed)
     """
     mv $bam ${sample_id}.bam &&  mv $bai ${sample_id}.bam.bai
-    pisces -o pisces_result -bam ${sample_id}.bam -g ${file(params.reference).getParent()} ${intervalsArg} -t $task.cpus --minvf 0.0005 --callmnvs false  --mindpfilter 500 --mindp 5 --threadbychr true --ssfilter false --minvq 0 --vqfilter 20  --minbq 30 --reportnocalls true --gvcf false
+    pisces -o pisces_result -bam ${sample_id}.bam -g ${file(params.reference).getParent()} ${intervalsArg} -t $task.cpus --minvf ${minvf} --callmnvs false  --mindpfilter ${mindpfilter} --mindp 5 --threadbychr true --ssfilter false --minvq 0 --vqfilter 20  --minbq 30 --reportnocalls true --gvcf false
     bcftools filter -i 'FILTER=="PASS"' pisces_result/${sample_id}.vcf -o ${sample_id}.pass.vcf
     bcftools norm  --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.pisces.norm.vcf.gz  ${sample_id}.pass.vcf
     bcftools index --threads $task.cpus  -t ${sample_id}.pisces.norm.vcf.gz
