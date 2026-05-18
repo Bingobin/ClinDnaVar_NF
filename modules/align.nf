@@ -10,9 +10,16 @@ process ALING_REF {
 
     script:
     """
+    set -euo pipefail
+
     bwa mem -t $task.cpus -M -R "@RG\\tID:${sample_id}\\tLB:LIB1\\tSM:${sample_id}\\tPL:ILLUMINA" -Y ${params.reference}  ${reads[0]} ${reads[1]} \
-    | samtools view -@$task.cpus -Sb - | samtools sort -@$task.cpus - -o ${sample_id}.sorted.bam
-    samtools index ${sample_id}.sorted.bam
+    | samtools view -@ $task.cpus -b -o ${sample_id}.bam -
+
+    samtools quickcheck -v ${sample_id}.bam
+    samtools sort -@ $task.cpus -T ${sample_id}.samtools_sort -o ${sample_id}.sorted.bam ${sample_id}.bam
+    samtools quickcheck -v ${sample_id}.sorted.bam
+    samtools index -@ $task.cpus ${sample_id}.sorted.bam
+    rm ${sample_id}.bam
     """
 }
 
