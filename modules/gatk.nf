@@ -24,7 +24,7 @@ def gatkJavaOptions(task, extra = "") {
 
 process GATK_rmdup {
 
-    tag "MarkDuplicates on $sample_id"
+    tag { "MarkDuplicates on $sample_id" }
     publishDir "$params.outdir/report", pattern: "*.metrics", mode: 'copy'
 
     input:
@@ -48,12 +48,12 @@ process GATK_rmdup {
 }
 
 process GATK_BQSR {
-    tag "BQSR on $sample_id"
+    tag { "BQSR on $sample_id" }
 
-    publishDir "$params.outdir/bam", mode:'copy', pattern: "${sample_id}.bqsr.bam"
-    publishDir "$params.outdir/bam", mode:'copy', pattern: "${sample_id}.bqsr.bai"
-    publishDir "$params.outdir/report", mode:'copy', pattern: "${sample_id}.recal_data.table"
-    publishDir "$params.outdir/report", mode:'copy', pattern: "${sample_id}.bqsr.bam.stats"
+    publishDir "$params.outdir/bam", mode:'copy', pattern: "*.bqsr.bam"
+    publishDir "$params.outdir/bam", mode:'copy', pattern: "*.bqsr.bai"
+    publishDir "$params.outdir/report", mode:'copy', pattern: "*.recal_data.table"
+    publishDir "$params.outdir/report", mode:'copy', pattern: "*.bqsr.bam.stats"
 
     input:
     tuple val(sample_id), path(bam), path(bai)
@@ -78,7 +78,7 @@ process GATK_BQSR {
 }
 
 process GENOTYPE {
-    tag "GenotypeGVCFs on $sample_id"
+    tag { "GenotypeGVCFs on $sample_id" }
     publishDir "$params.outdir/gvcf", mode:'copy'
 
     input:
@@ -96,8 +96,8 @@ process GENOTYPE {
 }
 
 process GATK_CALL_GERM {
-    tag "GATK call germline on $sample_id"
-    publishDir "$params.outdir/vcf", mode:'copy', pattern: "${sample_id}.HapCaller.norm.vcf.*"
+    tag { "GATK call germline on $sample_id" }
+    publishDir "$params.outdir/vcf", mode:'copy', pattern: "*.HapCaller.norm.vcf.*"
     publishDir "$params.outdir/report", mode:'copy', pattern: "*.pdf"
 
     input:

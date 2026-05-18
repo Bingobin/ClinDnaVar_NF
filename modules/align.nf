@@ -1,6 +1,6 @@
 process ALING_REF {
 
-    tag "bwa on $sample_id"
+    tag { "bwa on $sample_id" }
 
     input:
     tuple val(sample_id), path(reads)
@@ -25,7 +25,7 @@ process ALING_REF {
 
 process RM_UMI_DUP {
 
-    tag "gencore on $sample_id"
+    tag { "gencore on $sample_id" }
     publishDir "$params.outdir/report", mode:'copy', pattern: "*report*"
 
     input:

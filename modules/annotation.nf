@@ -1,6 +1,6 @@
 process MUT_ANNOTATE {
     cpus 1
-    tag "annovar on $sample_id"
+    tag { "annovar on $sample_id" }
     publishDir "$params.outdir/maf", mode:'copy', pattern: "*.snpdb155.hg38_multianno.maf.gz"
     publishDir "$params.outdir/maf", mode:'copy', pattern: "*.snpdb155.hg38_multianno.vcf.*"
 
@@ -31,7 +31,7 @@ process MUT_ANNOTATE {
 }
 
 process MAF_COMBIND {
-    tag "combind_maf on $sample_id"
+    tag { "combind_maf on $sample_id" }
     publishDir "$params.outdir/maf", mode:'copy'
 
     input:

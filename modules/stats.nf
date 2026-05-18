@@ -18,7 +18,7 @@ def optionArg(option, value) {
 
 process BAM_DEPTH {
 
-    tag "mosdepth_d4 on $sample_id"
+    tag { "mosdepth_d4 on $sample_id" }
     publishDir "$params.outdir/depth", mode:'copy'
 
     input:
@@ -37,7 +37,7 @@ process BAM_DEPTH {
 }
 
 process VCF_STATS {
-    tag "bcftools stats on $sample_id $type"
+    tag { "bcftools stats on $sample_id $type" }
     publishDir "$params.outdir/vcf", mode:'copy', pattern: "*.bcftools.stats"
 
     input:

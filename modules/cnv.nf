@@ -13,7 +13,7 @@ def cnvkitParamValue(value) {
 
 process CNVKIT_BATCH {
 
-    tag "cnvkit batch on $sample_id"
+    tag { "cnvkit batch on $sample_id" }
     publishDir "$params.outdir/cnvkit", mode:'copy'
     conda params.cnvkit_conda
 

@@ -41,7 +41,7 @@ def vardictMinAf() {
 }
 
 process DeepVariant_CALL {
-    tag "DeepVariant on $sample_id"
+    tag { "DeepVariant on $sample_id" }
 
     input:
     tuple val(sample_id), path(bam)
@@ -59,7 +59,7 @@ process DeepVariant_CALL {
 }
 
 process Mutect2_Call {
-    tag "mutect2 on $sample_id"
+    tag { "mutect2 on $sample_id" }
     publishDir "$params.outdir/vcf", mode:'copy'
 
     input:
@@ -81,7 +81,7 @@ process Mutect2_Call {
 }
 
 process Pindel_Split_BED {
-    tag "split bed file for Pindel"
+    tag { "split bed file for Pindel" }
 
     input:
     tuple val(sample_id), path(bam), path(bai)
@@ -99,7 +99,7 @@ process Pindel_Split_BED {
 
 process Pindel_Call {
     cpus 1
-    tag "pindel on $sample_id  ${file(bed).getBaseName()}"
+    tag { "pindel on $sample_id  ${file(bed).getBaseName()}" }
 
     input:
     tuple val(sample_id), path(bam), path(bai), path(bed)
@@ -116,7 +116,7 @@ process Pindel_Call {
 }
 
 process Pindel_Merge {
-    tag "pindel merge on $sample_id"
+    tag { "pindel merge on $sample_id" }
     publishDir "$params.outdir/vcf", mode:'copy'
 
     input:
@@ -138,7 +138,7 @@ process Pindel_Merge {
 }
 
 process LoFreq_Call {
-    tag "lofreq on $sample_id"
+    tag { "lofreq on $sample_id" }
     publishDir "$params.outdir/vcf", mode:'copy'
 
     input:
@@ -164,7 +164,7 @@ process LoFreq_Call {
 }
 
 process VarDict_Call {
-    tag "vardict on $sample_id"
+    tag { "vardict on $sample_id" }
     publishDir "$params.outdir/vcf", mode:'copy'
 
     input:
@@ -192,7 +192,7 @@ process VarDict_Call {
 }
 
 process Pisces_Call {
-    tag "pisces on $sample_id"
+    tag { "pisces on $sample_id" }
     publishDir "$params.outdir/vcf", mode:'copy'
 
     input:

@@ -1,6 +1,6 @@
 process FASTQC {
     cpus 2
-    tag "fastqc in $sample_id"
+    tag { "fastqc in $sample_id" }
     publishDir "$params.outdir/report", mode:'copy'
 
     input:
@@ -24,7 +24,7 @@ process FASTQC {
 
 process FastpFilter {
 
-    tag "fastp on $sample_id"
+    tag { "fastp on $sample_id" }
     publishDir "$params.outdir/report", mode:'copy', pattern: "*report*"
 
     input:
