@@ -95,17 +95,14 @@ process GENOTYPE {
     """
 }
 
-process GATK_CALL_GERM {
-    tag { "GATK call germline on $sample_id" }
-    publishDir "$params.outdir/vcf", mode:'copy', pattern: "*.HapCaller.norm.vcf.*"
-    publishDir "$params.outdir/report", mode:'copy', pattern: "*.pdf"
+process GATK_GENOTYPE_GVCF {
+    tag { "GenotypeGVCFs on $sample_id" }
 
     input:
     tuple val(sample_id), path(gvcf)
 
     output:
-    tuple val(sample_id), val("HapCaller"), path("${sample_id}.HapCaller.norm.vcf.*"), emit: 'vcf'
-    tuple val(sample_id), path("*.pdf"), emit: 'report'
+    tuple val(sample_id), path("${sample_id}.vcf.gz"), path("${sample_id}.vcf.gz.tbi"), emit: vcf
 
     script:
     def memory = gatkJavaOptions(task)
@@ -124,7 +121,6 @@ process GATK_CALL_GERM {
     """
     def cleanupGenomicsDb = intervalsArg ? "rm -rf ${sample_id}_DB" : ""
     """
-    # Step 1: GenotypeGVCFs
     ${genomicsDbImport}
 
     gatk --java-options "${memory}" GenotypeGVCFs \\
@@ -134,11 +130,27 @@ process GATK_CALL_GERM {
         --tmp-dir ${params.tmp} \\
         --dbsnp ${params.snpdb}
 
-    # Step 2: SNP VQSR
-    echo "Starting SNP recalibration for ${sample_id}"
+    ${cleanupGenomicsDb}
+    """
+}
+
+process GATK_SNP_VQSR {
+    tag { "SNP VQSR on $sample_id" }
+    publishDir "$params.outdir/report", mode:'copy', pattern: "*.pdf"
+
+    input:
+    tuple val(sample_id), path(vcf), path(tbi)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.VQSR.snp.vcf.gz"), path("${sample_id}.VQSR.snp.vcf.gz.tbi"), emit: vcf
+    tuple val(sample_id), path("*.pdf"), emit: report
+
+    script:
+    def memory = gatkJavaOptions(task)
+    """
     gatk --java-options "${memory}" SelectVariants \\
         -R ${params.reference} \\
-        -V ${sample_id}.vcf.gz \\
+        -V ${vcf} \\
         --tmp-dir ${params.tmp} \\
         -O ${sample_id}.raw.snp.vcf.gz \\
         --exclude-non-variants \\
@@ -165,13 +177,27 @@ process GATK_CALL_GERM {
         -O ${sample_id}.VQSR.snp.vcf.gz \\
         -mode SNP
 
-    rm ${sample_id}.raw.snp.vcf.gz ${sample_id}.raw.snp.vcf.gz.tbi
+    rm -f ${sample_id}.raw.snp.vcf.gz ${sample_id}.raw.snp.vcf.gz.tbi
+    """
+}
 
-    # Step 3: INDEL VQSR
-    echo "Starting INDEL recalibration for ${sample_id}"
+process GATK_INDEL_VQSR {
+    tag { "INDEL VQSR on $sample_id" }
+    publishDir "$params.outdir/report", mode:'copy', pattern: "*.pdf"
+
+    input:
+    tuple val(sample_id), path(vcf), path(tbi)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.VQSR.indel.vcf.gz"), path("${sample_id}.VQSR.indel.vcf.gz.tbi"), emit: vcf
+    tuple val(sample_id), path("*.pdf"), emit: report
+
+    script:
+    def memory = gatkJavaOptions(task)
+    """
     gatk --java-options "${memory}" SelectVariants \\
         -R ${params.reference} \\
-        -V ${sample_id}.vcf.gz \\
+        -V ${vcf} \\
         --tmp-dir ${params.tmp} \\
         -O ${sample_id}.raw.indel.vcf.gz \\
         --exclude-non-variants \\
@@ -197,29 +223,61 @@ process GATK_CALL_GERM {
         -O ${sample_id}.VQSR.indel.vcf.gz \\
         -mode INDEL
 
-    rm ${sample_id}.raw.indel.vcf.gz ${sample_id}.raw.indel.vcf.gz.tbi
+    rm -f ${sample_id}.raw.indel.vcf.gz ${sample_id}.raw.indel.vcf.gz.tbi
+    """
+}
 
-    # Step 4: Merge SNP and INDEL results
-    echo "Merging SNP and INDEL results for ${sample_id}"
-    gatk --java-options "${memory}" SortVcf -I ${sample_id}.VQSR.snp.vcf.gz -O ${sample_id}.VQSR.snp.sort.vcf.gz
+process GATK_MERGE_VQSR {
+    tag { "Merge VQSR on $sample_id" }
 
-    gatk --java-options "${memory}" SortVcf -I ${sample_id}.VQSR.indel.vcf.gz -O ${sample_id}.VQSR.indel.sort.vcf.gz
+    input:
+    tuple val(sample_id), path(snp_vcf), path(snp_tbi), path(indel_vcf), path(indel_tbi)
 
+    output:
+    tuple val(sample_id), path("${sample_id}.VQSR.sort.vcf.gz"), path("${sample_id}.VQSR.sort.vcf.gz.tbi"), emit: vcf
+
+    script:
+    def memory = gatkJavaOptions(task)
+    """
+    gatk --java-options "${memory}" SortVcf -I ${snp_vcf} -O ${sample_id}.VQSR.snp.sort.vcf.gz
+    gatk --java-options "${memory}" SortVcf -I ${indel_vcf} -O ${sample_id}.VQSR.indel.sort.vcf.gz
     gatk --java-options "${memory}" MergeVcfs -I ${sample_id}.VQSR.snp.sort.vcf.gz -I ${sample_id}.VQSR.indel.sort.vcf.gz -O ${sample_id}.VQSR.sort.vcf.gz
+    gatk --java-options "${memory}" IndexFeatureFile -I ${sample_id}.VQSR.sort.vcf.gz
 
-    # Clean up intermediate files
-    rm -f ${sample_id}.VQSR.snp.vcf.gz ${sample_id}.VQSR.snp.vcf.gz.tbi
     rm -f ${sample_id}.VQSR.snp.sort.vcf.gz ${sample_id}.VQSR.snp.sort.vcf.gz.tbi
-    rm -f ${sample_id}.VQSR.indel.vcf.gz ${sample_id}.VQSR.indel.vcf.gz.tbi
     rm -f ${sample_id}.VQSR.indel.sort.vcf.gz ${sample_id}.VQSR.indel.sort.vcf.gz.tbi
-    rm -f ${sample_id}.recalibrate_SNP.recal ${sample_id}.recalibrate_SNP.recal.idx
-    rm -f ${sample_id}.recalibrate_INDEL.recal ${sample_id}.recalibrate_INDEL.recal.idx
-    rm -f ${sample_id}.vcf.gz ${sample_id}.vcf.gz.tbi
-    ${cleanupGenomicsDb}
+    """
+}
 
-    # Step 5: bcftools normalize
-    bcftools norm --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.HapCaller.norm.vcf.gz ${sample_id}.VQSR.sort.vcf.gz
+process GATK_NORM_GERMLINE {
+    tag { "Normalize HapCaller on $sample_id" }
+    publishDir "$params.outdir/vcf", mode:'copy', pattern: "*.HapCaller.norm.vcf.*"
 
+    input:
+    tuple val(sample_id), path(vcf), path(tbi)
+
+    output:
+    tuple val(sample_id), val("HapCaller"), path("${sample_id}.HapCaller.norm.vcf.*"), emit: vcf
+
+    script:
+    """
+    bcftools norm --threads $task.cpus --check-ref w --atomize --multiallelics -any -f ${params.reference} -Oz -o ${sample_id}.HapCaller.norm.vcf.gz ${vcf}
     bcftools index --threads $task.cpus -t ${sample_id}.HapCaller.norm.vcf.gz
     """
+}
+
+workflow GATK_CALL_GERM {
+    take:
+    gvcf
+
+    main:
+    def ch_genotyped = GATK_GENOTYPE_GVCF(gvcf)
+    def ch_snp = GATK_SNP_VQSR(ch_genotyped.vcf)
+    def ch_indel = GATK_INDEL_VQSR(ch_genotyped.vcf)
+    def ch_merged = GATK_MERGE_VQSR(ch_snp.vcf.join(ch_indel.vcf))
+    def ch_norm = GATK_NORM_GERMLINE(ch_merged.vcf)
+
+    emit:
+    vcf = ch_norm.vcf
+    report = ch_snp.report.mix(ch_indel.report)
 }
