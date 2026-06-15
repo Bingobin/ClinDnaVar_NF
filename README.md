@@ -1,6 +1,6 @@
 # ClinDnaVar_NF（ClinSeq DNAseq Variant Calling Pipeline）
 
-ClinDnaVar_NF is a clinical-grade DNA sequencing variant calling workflow for WES, targeted panels, and WGS, built with Nextflow DSL2. It is also suitable for high-depth panel analysis of clonal hematopoiesis of indeterminate potential (CHIP) mutations. The pipeline covers end-to-end processing from raw FASTQ to annotated variant outputs: QC, read filtering, alignment, duplicate handling, BQSR, germline calling, multiple somatic callers, annotation, and MAF aggregation. Caller execution is configurable via parameters so you can tailor the workflow to the assay and use case.
+ClinDnaVar_NF is a Nextflow-based DNA sequencing variant calling workflow for WES, targeted panels, and WGS. The workflow is designed for research and analysis of DNA variants, including variants with potential clinical relevance. It is also suitable for high-depth panel analysis of clonal hematopoiesis of indeterminate potential (CHIP) mutations. The pipeline covers end-to-end processing from raw FASTQ to annotated variant outputs: QC, read filtering, alignment, duplicate handling, BQSR, germline calling, multiple somatic callers, annotation, and MAF aggregation. Caller execution is configurable via parameters so you can tailor the workflow to the assay and use case.
 
 ## Related Publication
 
