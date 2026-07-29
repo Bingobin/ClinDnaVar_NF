@@ -1,2 +1,2 @@
 ID,R1,R2
-test,/lustre/home/acct-medty/medty-c/project/26.HLH_WES/01.callmut_nf/test/test.R1.fastq.gz,/lustre/home/acct-medty/medty-c/project/26.HLH_WES/01.callmut_nf/test/test.R2.fastq.gz
+Sample1,/path/to/data/Sample1_R1.fastq.gz,/path/to/data/Sample1_R2.fastq.gz

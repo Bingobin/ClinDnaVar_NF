@@ -2,14 +2,6 @@
 
 ClinDnaVar_NF is a Nextflow-based DNA sequencing variant calling workflow for WES, targeted panels, and WGS. The workflow is designed for research and analysis of DNA variants, including variants with potential clinical relevance. It is also suitable for high-depth panel analysis of clonal hematopoiesis of indeterminate potential (CHIP) mutations. The pipeline covers end-to-end processing from raw FASTQ to annotated variant outputs: QC, read filtering, alignment, duplicate handling, BQSR, germline calling, multiple somatic callers, annotation, and MAF aggregation. Caller execution is configurable via parameters so you can tailor the workflow to the assay and use case.
 
-## Related Publication
-
-- Please cite this article as: Liu Yb, Xu Yy, Yang Sz, Song H, Jiao B, Tan Y, Strategies and challenges in the detection of clonal hematopoiesis: current advances and future perspectives, *LabMed Discovery*, https://doi.org/10.1016/j.lmd.2026.100120
-  
-<p align="center">
-  <img src="assets/CH.png" alt="Clonal hematopoiesis review figure" width="700" />
-</p>
-
 ## Features
 
 - FastQC + fastp for QC and read filtering
@@ -22,23 +14,40 @@ ClinDnaVar_NF is a Nextflow-based DNA sequencing variant calling workflow for WE
 
 ## Requirements
 
-This pipeline expects the following tools to be available in PATH (or in your container/module environment):
+### System requirements
 
-- nextflow
-- fastqc
-- fastp
-- bwa
-- samtools
-- gatk
-- bcftools
-- mosdepth_d4
-- lofreq
-- vardict-java
-- var2vcf_valid.pl
-- pisces
-- annovar (table_annovar.pl)
-- perl
-- cnvkit.py
+ClinDnaVar_NF is a command-line Nextflow DSL2 workflow intended for Linux-based servers, high-performance computing clusters, or cloud analysis environments. The workflow was developed with Nextflow v26.04.1 build 12112 using DSL2 and standard Linux command-line tools.
+
+No non-standard hardware is required for the workflow itself. For real WES, WGS, or high-depth panel datasets, use a Linux server or HPC environment with sufficient CPU cores, memory, and storage for BAM/CRAM, VCF, MAF, and annotation files. Default process resources are listed below and can be overridden in `nextflow.config`.
+
+### Software dependencies
+
+The workflow expects the following tools to be available in `PATH` or in the active container/module/Conda environment:
+
+| Tool/resource | Tested version | Notes |
+| --- | --- | --- |
+| Nextflow | v26.04.1 build 12112 | DSL2 workflow engine |
+| Java | Required by Nextflow, GATK, and VarDictJava | Use a Java version compatible with the installed Nextflow and GATK releases |
+| FastQC | Required | FASTQ quality control |
+| fastp | Required | Read filtering and UMI extraction in `panel_umi` mode |
+| BWA | Required | Read alignment from FASTQ input |
+| SAMtools | Required | BAM/CRAM processing and indexing |
+| GATK BaseRecalibrator/ApplyBQSR | v4.3.0.0 | BQSR |
+| GATK Mutect2 | v4.1.0.0 | Somatic variant calling in blood-only mode |
+| BCFtools | v1.23 | VCF normalization, filtering, annotation, compression, and indexing |
+| LoFreq | v2.1.5 | Somatic variant calling |
+| VarDictJava | v1.8.3 | Somatic variant calling |
+| Pisces | v5.2.10.49 | Somatic variant calling |
+| ANNOVAR | Required | Functional annotation with `table_annovar.pl` |
+| dbSNP | v155 | dbSNP annotation resource |
+| COSMIC | v87 | Cancer mutation annotation resource |
+| ClinVar | v20221231 | Clinical variant annotation resource |
+| gnomAD | v3.1.2 | Population allele-frequency annotation resource |
+| mosdepth_d4 | Required | Depth and coverage statistics |
+| CNVKit | Required when `--cnvkit true` | CNV analysis |
+| Perl | Required | Helper scripts in `bin/` |
+
+Version numbers above list software or resource versions only.
 
 Optional (currently commented in workflow):
 
@@ -56,6 +65,17 @@ Custom scripts in `bin/` are used by the workflow and should remain in PATH (Nex
 - `maf_sort_by_pos.pl`
 - `combind_maf_v2.pl`
 - `annotate_maf_with_vcf_info.py` (append raw INFO from a reference/normal VCF onto a MAF by variant match, including ANNOVAR/MAF-style indels represented with `-` and shifted coordinates)
+
+## Installation
+
+Clone the repository and enter the workflow directory:
+
+```bash
+git clone https://github.com/Bingobin/ClinDnaVar_NF.git
+cd ClinDnaVar_NF
+```
+
+Install or load the required third-party tools listed above using your local module system, Conda environments, containers, or manually installed software. Nextflow automatically adds the repository `bin/` directory to `PATH` during workflow execution, so the bundled helper scripts do not require a separate installation step.
 
 ## Input
 
@@ -89,35 +109,35 @@ Sample1,/path/to/Sample1.bam,/path/to/Sample1.bam.bai
 
 Default input is set in `nextflow.config`:
 
-- `params.input = "$projectDir/bin/samplesheet_20240706.csv"`
+- `params.input = "$projectDir/assets/samplesheet.test.csv"`
 
-You can override it with `--input`.
+This file is a samplesheet format template only; the repository does not include sequencing data. Replace its placeholder paths with paths to your own FASTQ files, or provide another samplesheet with `--input`.
 
 ## Running
 
 Basic run:
 
 ```bash
-nextflow run main.nf --input samplesheet.test.csv
+nextflow run main.nf --input assets/samplesheet.test.csv
 ```
 
 Select assay type with `--assay_mode`:
 
 ```bash
-nextflow run main.nf --input samplesheet.test.csv --assay_mode wes
-nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals ''
-nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed primary_contigs.bed --intervals primary_contigs.interval_list
-nextflow run main.nf --input samplesheet.test.csv --assay_mode wgs --bed '' --intervals '' --cnvkit true --cnv_access /path/to/access-5kb-mappable.hg38.bed
-nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_no_umi
-nextflow run main.nf --input samplesheet.test.csv --assay_mode panel_umi
+nextflow run main.nf --input assets/samplesheet.test.csv --assay_mode wes
+nextflow run main.nf --input assets/samplesheet.test.csv --assay_mode wgs --bed '' --intervals ''
+nextflow run main.nf --input assets/samplesheet.test.csv --assay_mode wgs --bed primary_contigs.bed --intervals primary_contigs.interval_list
+nextflow run main.nf --input assets/samplesheet.test.csv --assay_mode wgs --bed '' --intervals '' --cnvkit true --cnv_access /path/to/access-5kb-mappable.hg38.bed
+nextflow run main.nf --input assets/samplesheet.test.csv --assay_mode panel_no_umi
+nextflow run main.nf --input assets/samplesheet.test.csv --assay_mode panel_umi
 ```
 
 Select callers with `--callers` (comma-separated):
 
 ```bash
-nextflow run main.nf --input samplesheet.test.csv --callers mutect2,lofreq
-nextflow run main.nf --input samplesheet.test.csv --callers germline
-nextflow run main.nf --input samplesheet.test.csv --callers mutect2,vardict,pisces,germline
+nextflow run main.nf --input assets/samplesheet.test.csv --callers mutect2,lofreq
+nextflow run main.nf --input assets/samplesheet.test.csv --callers germline
+nextflow run main.nf --input assets/samplesheet.test.csv --callers mutect2,vardict,pisces,germline
 ```
 
 Supported values:
@@ -133,8 +153,8 @@ If no callers are selected, annotation and MAF combine steps are skipped.
 Legacy switches are still supported:
 
 ```bash
-nextflow run main.nf --input samplesheet.test.csv --use_umi true
-nextflow run main.nf --input samplesheet.test.csv --no_umi_panel_call true
+nextflow run main.nf --input assets/samplesheet.test.csv --use_umi true
+nextflow run main.nf --input assets/samplesheet.test.csv --no_umi_panel_call true
 ```
 
 ## Parameters
@@ -205,17 +225,34 @@ Main output folders (under `--outdir`):
 ```
 .
 ├── assets/               # reference bed/intervals and dbSNP VCF
+│   └── samplesheet.test.csv
 ├── bin/                  # helper scripts used by pipeline
 ├── modules/              # Nextflow DSL2 modules
 ├── main.nf               # main workflow
 ├── nextflow.config       # default params and resources
-├── samplesheet.test.csv  # example samplesheet
+├── LICENSE               # GPL-3.0 license
 └── README.md
 ```
 
+## Related Publication
+
+- Please cite this article as: Liu Yb, Xu Yy, Yang Sz, Song H, Jiao B, Tan Y, Strategies and challenges in the detection of clonal hematopoiesis: current advances and future perspectives, *LabMed Discovery*, https://doi.org/10.1016/j.lmd.2026.100120
+
+<p align="center">
+  <img src="assets/CH.png" alt="Clonal hematopoiesis review figure" width="700" />
+</p>
+
+## License
+
+ClinDnaVar_NF is released under the GNU General Public License v3.0 (GPL-3.0). See `LICENSE` for the full license text.
+
+## Implementation Details
+
+The workflow logic includes optional region-restricted input processing, BQSR, blood-only multi-caller somatic variant detection, VCF normalization, annotation, MAF conversion, multi-caller merge logic, and CHIP-specific filtering/curation. The executable workflow steps are summarized in the `Workflow Overview` section above and implemented in `main.nf`, `modules/`, and `bin/`.
+
 ## Notes
 
-- The pipeline uses fixed paths for some reference resources in `nextflow.config` and `bin/get_germline.pl`. Update these paths to match your environment.
+- The pipeline uses placeholder paths for reference resources in `nextflow.config` and helper scripts. Update these paths to match your environment before running on real data.
 - In `panel_umi` mode, or when `--use_umi true` is used, fastp extracts UMIs as two 4 bp segments by default, one from each read, and writes them to read names with the `UMI` prefix for downstream UMI duplicate removal.
 - When `--no_umi_panel_call true` is set, `MarkDuplicates` keeps duplicate reads in the BAM and only marks them, which is more suitable for non-UMI targeted panel somatic calling.
 - Default mosdepth thresholds now follow `assay_mode`: `wes=10,20,50,100`, `wgs=10,20,30`, `panel_umi/panel_no_umi=100,200,500,1000`, unless `--depth_thresholds` is set explicitly.
